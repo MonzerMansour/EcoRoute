@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Leaf, Mail, Loader2 } from "lucide-react";
@@ -46,6 +46,14 @@ export function LoginForm({
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState<"email" | "google" | null>(null);
   const [error, setError] = useState("");
+  const [googleEnabled, setGoogleEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/providers")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((providers) => setGoogleEnabled(Boolean(providers?.google)))
+      .catch(() => setGoogleEnabled(false));
+  }, []);
 
   const accentColors = {
     brand: {
@@ -61,7 +69,7 @@ export function LoginForm({
   };
 
   const colors = accentColors[accent];
-  const callbackUrl = role === "teacher" ? "/for-schools" : "/for-students";
+  const callbackUrl = role === "teacher" ? "/teacher" : "/student";
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -90,6 +98,13 @@ export function LoginForm({
   }
 
   async function handleGoogleLogin() {
+    if (!googleEnabled) {
+      setError(
+        "Google sign-in is not configured yet. Add AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET to .env.local, then restart the dev server.",
+      );
+      return;
+    }
+
     setLoading("google");
     setError("");
 
@@ -160,7 +175,7 @@ export function LoginForm({
           <button
             type="button"
             onClick={handleGoogleLogin}
-            disabled={loading !== null}
+            disabled={loading !== null || googleEnabled === false}
             className="mt-8 flex w-full items-center justify-center gap-3 rounded-xl border border-earth-300 bg-white px-4 py-3 text-sm font-semibold text-earth-700 shadow-sm transition-colors hover:bg-earth-50 disabled:opacity-60"
           >
             {loading === "google" ? (
@@ -170,6 +185,12 @@ export function LoginForm({
             )}
             Continue with Google
           </button>
+
+          {googleEnabled === false && (
+            <p className="mt-2 text-center text-xs text-earth-500">
+              Google OAuth credentials are missing in <code>.env.local</code>.
+            </p>
+          )}
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">

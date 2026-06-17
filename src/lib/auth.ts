@@ -13,14 +13,22 @@ declare module "next-auth" {
   }
 }
 
-const providers: NextAuthConfig["providers"] = [
-  Google({
-    clientId: process.env.AUTH_GOOGLE_ID,
-    clientSecret: process.env.AUTH_GOOGLE_SECRET,
-  }),
-];
+function envIsSet(value: string | undefined): value is string {
+  return Boolean(value && !value.startsWith("your-"));
+}
 
-if (process.env.EMAIL_SERVER) {
+const providers: NextAuthConfig["providers"] = [];
+
+if (envIsSet(process.env.AUTH_GOOGLE_ID) && envIsSet(process.env.AUTH_GOOGLE_SECRET)) {
+  providers.push(
+    Google({
+      clientId: process.env.AUTH_GOOGLE_ID,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET,
+    }),
+  );
+}
+
+if (envIsSet(process.env.EMAIL_SERVER) && envIsSet(process.env.EMAIL_FROM)) {
   providers.push(
     Nodemailer({
       server: process.env.EMAIL_SERVER,
@@ -30,6 +38,8 @@ if (process.env.EMAIL_SERVER) {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.AUTH_SECRET,
+  trustHost: true,
   providers,
   pages: {
     signIn: "/login/teacher",

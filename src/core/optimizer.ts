@@ -9,6 +9,17 @@ const MIXING_TYPES_ORDER: VehicleType[] = [
   "solo_car",
 ];
 
+/**
+ * Upper bound on roster size accepted by the planner. Real team/field-trip
+ * rosters are well under this; the cap exists to keep the mixed-configuration
+ * search bounded (it grows quickly with roster size) and to prevent a single
+ * request from blocking the server's event loop.
+ */
+export const MAX_ROSTER_SIZE = 300;
+
+/** Absolute ceiling on search nodes — a final safety net against blow-up. */
+const MAX_SEARCH_NODES = 2_000_000;
+
 function planLabel(counts: Map<VehicleType, number>): string {
   const parts: string[] = [];
   for (const type of MIXING_TYPES_ORDER) {
@@ -60,18 +71,23 @@ export function optimizeVehicleLoad({
   const types = MIXING_TYPES_ORDER.filter((t) => allowedVehicles.includes(t));
   if (types.length === 0 || rosterSize <= 0) return [];
 
+  // Clamp roster size so the search space stays bounded.
+  const safeRoster = Math.min(Math.ceil(rosterSize), MAX_ROSTER_SIZE);
+
   const smallestCapacity = Math.min(
     ...types.map((t) => VEHICLE_SPECS[t].capacity),
   );
 
   const feasible: VehiclePlan[] = [];
   const seen = new Set<string>();
+  let nodes = 0;
 
   const recurse = (index: number, counts: Map<VehicleType, number>, seats: number) => {
+    if (++nodes > MAX_SEARCH_NODES) return;
     if (index === types.length) {
-      if (seats < rosterSize) return;
+      if (seats < safeRoster) return;
       // Prune wildly over-provisioned plans (waste more than one small vehicle).
-      if (seats - rosterSize >= smallestCapacity && seats > rosterSize) {
+      if (seats - safeRoster >= smallestCapacity && seats > safeRoster) {
         // still allow if it's a single-vehicle plan (e.g. one bus for 12)
         const totalVehicles = [...counts.values()].reduce((a, b) => a + b, 0);
         if (totalVehicles > 1) return;
@@ -98,10 +114,10 @@ export function optimizeVehicleLoad({
 
     const type = types[index];
     const spec = VEHICLE_SPECS[type];
-    const remaining = Math.max(0, rosterSize - seats);
+    const remaining = Math.max(0, safeRoster - seats);
     // Cap count: enough to cover the remaining roster with this type, +1 slack.
     const maxCount = Math.min(
-      Math.ceil(rosterSize / spec.capacity) + 1,
+      Math.ceil(safeRoster / spec.capacity) + 1,
       Math.ceil(remaining / spec.capacity) + 1,
     );
 

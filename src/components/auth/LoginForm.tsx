@@ -36,6 +36,8 @@ function GoogleIcon({ className }: { className?: string }) {
 }
 
 export function LoginForm({ role, title, subtitle }: LoginFormProps) {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState<"email" | "google" | null>(null);
@@ -57,22 +59,48 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
     e.preventDefault();
     if (!email || !password) return;
 
+    if (mode === "signup" && password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
     setLoading("email");
     setError("");
 
     try {
+      if (mode === "signup") {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, name, role }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError(
+            data.errors?.[0] ?? data.error ?? "Could not create your account.",
+          );
+          setLoading(null);
+          return;
+        }
+      }
+
       const result = await signIn("credentials", {
         email,
         password,
-        role,
         callbackUrl,
         redirect: false,
       });
 
       if (result?.error) {
-        setError("Invalid email or password. Please try again.");
+        setError(
+          mode === "signup"
+            ? "Account created, but sign-in failed. Try signing in."
+            : "Invalid email or password. Please try again.",
+        );
       } else if (result?.url) {
         window.location.href = result.url;
+      } else {
+        window.location.href = callbackUrl;
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -170,11 +198,24 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
             <div className="relative">
               <Separator />
               <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 text-xs text-muted-foreground">
-                or sign in with email
+                {mode === "signup" ? "or create an account" : "or sign in with email"}
               </span>
             </div>
 
             <form onSubmit={handleEmailLogin} className="space-y-4">
+              {mode === "signup" && (
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your name"
+                    autoComplete="name"
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email address</Label>
                 <div className="relative">
@@ -200,8 +241,15 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder={
+                      mode === "signup"
+                        ? "At least 8 characters"
+                        : "Enter your password"
+                    }
                     required
+                    autoComplete={
+                      mode === "signup" ? "new-password" : "current-password"
+                    }
                     className="pl-9"
                   />
                 </div>
@@ -210,6 +258,8 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
               <Button type="submit" className="w-full" disabled={loading !== null}>
                 {loading === "email" ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
+                ) : mode === "signup" ? (
+                  "Create account"
                 ) : (
                   "Sign in"
                 )}
@@ -217,14 +267,37 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
             </form>
 
             <p className="text-center text-sm text-muted-foreground">
+              {mode === "signin"
+                ? "Don't have an account?"
+                : "Already have an account?"}{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === "signin" ? "signup" : "signin");
+                  setError("");
+                }}
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {mode === "signin" ? "Create one" : "Sign in"}
+              </button>
+            </p>
+
+            {mode === "signin" && (
+              <div className="rounded-lg border border-dashed bg-muted/40 px-3 py-2 text-center text-xs text-muted-foreground">
+                Demo {role} account: <code>{role}@ecoroute.app</code> /{" "}
+                <code>ecoroute123</code>
+              </div>
+            )}
+
+            <p className="text-center text-sm text-muted-foreground">
               {role === "teacher" ? "Are you a student?" : "Are you a teacher?"}{" "}
               <ButtonLink href={otherHref} variant="link" className="h-auto p-0">
-                Sign in as {otherRole}
+                Continue as {otherRole}
               </ButtonLink>
             </p>
 
             <p className="text-center text-xs text-muted-foreground">
-              By signing in, you agree to our terms of service and privacy policy.
+              By continuing, you agree to our terms of service and privacy policy.
             </p>
           </CardContent>
         </Card>

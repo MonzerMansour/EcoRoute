@@ -13,6 +13,13 @@ const MODELS: string[] = [
   "gemini-2.0-flash",
 ];
 
+/** Per-model timeout (ms) so a stalled provider can't hang the request. */
+const MODEL_TIMEOUT_MS = 9000;
+/** How long a generated result stays cached (ms). */
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+const cache = new Map<string, { value: unknown; expires: number }>();
+
 export function isAiConfigured(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
 }
@@ -23,23 +30,57 @@ function client(): GoogleGenAI | null {
   return new GoogleGenAI({ apiKey });
 }
 
-async function generateJson<T>(prompt: string): Promise<T | null> {
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`timed out after ${ms}ms`)),
+      ms,
+    );
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
+async function generateJson<T>(
+  prompt: string,
+  cacheKey?: string,
+): Promise<T | null> {
+  if (cacheKey) {
+    const hit = cache.get(cacheKey);
+    if (hit && hit.expires > Date.now()) return hit.value as T;
+  }
+
   const ai = client();
   if (!ai) return null;
 
   for (const model of MODELS) {
     try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.6,
-        },
-      });
+      const response = await withTimeout(
+        ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            temperature: 0.6,
+          },
+        }),
+        MODEL_TIMEOUT_MS,
+      );
       const text = response.text;
       if (!text) continue;
-      return JSON.parse(text) as T;
+      const parsed = JSON.parse(text) as T;
+      if (cacheKey) {
+        cache.set(cacheKey, { value: parsed, expires: Date.now() + CACHE_TTL_MS });
+      }
+      return parsed;
     } catch (err) {
       console.error(`[EcoRoute AI] ${model} failed:`, err);
       // Try the next model in the chain.
@@ -92,7 +133,8 @@ Return ONLY JSON matching this TypeScript type:
   "topChanges": { "title": string, "impact": string }[]  // exactly the 3 highest-impact changes, plain English
 }`;
 
-  const ai = await generateJson<Omit<SeasonReport, "source">>(prompt);
+  const cacheKey = `season:${summary.totalCo2Kg}:${summary.optimalTotalCo2Kg}:${summary.tripCount}`;
+  const ai = await generateJson<Omit<SeasonReport, "source">>(prompt, cacheKey);
   if (ai && ai.headline && ai.narrative) {
     return { ...ai, source: "ai" };
   }
@@ -152,7 +194,8 @@ Return ONLY JSON:
   "recommendation": string   // 1 sentence telling the coach what to do
 }`;
 
-  const ai = await generateJson<Omit<TripInsight, "source">>(prompt);
+  const cacheKey = `trip:${trip.id}:${trip.updatedAt}:${best?.label ?? "none"}`;
+  const ai = await generateJson<Omit<TripInsight, "source">>(prompt, cacheKey);
   if (ai && ai.summary && ai.recommendation) {
     return { ...ai, source: "ai" };
   }

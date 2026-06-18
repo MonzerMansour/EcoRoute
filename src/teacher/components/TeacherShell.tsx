@@ -5,6 +5,7 @@ import { Leaf } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Separator } from "@/components/ui/separator";
+import { SignOutButton } from "@/components/auth/SignOutButton";
 
 const navLinks = [
   { href: "/teacher", label: "Dashboard" },
@@ -31,9 +32,12 @@ export function TeacherNav() {
           <span className="font-bold">EcoRoute</span>
           <span className="text-sm text-muted-foreground">Coach</span>
         </ButtonLink>
-        <ButtonLink href="/" variant="outline" size="sm">
-          Back to site
-        </ButtonLink>
+        <div className="flex items-center gap-2">
+          <ButtonLink href="/" variant="outline" size="sm">
+            Back to site
+          </ButtonLink>
+          <SignOutButton />
+        </div>
       </div>
       <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pb-3 sm:px-6 lg:px-8">
         {navLinks.map((link) => {

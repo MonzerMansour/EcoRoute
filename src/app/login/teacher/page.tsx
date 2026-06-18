@@ -10,7 +10,6 @@ export default function TeacherLoginPage() {
       role="teacher"
       title="Teacher & Staff Sign In"
       subtitle="Access your season planner, emissions dashboard, and travel optimizer."
-      accent="brand"
     />
   );
 }

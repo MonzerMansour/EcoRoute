@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   ArrowRight,
   Brain,
@@ -10,6 +9,8 @@ import {
   Layers,
 } from "lucide-react";
 import { CTASection } from "@/components/marketing/CTASection";
+import { ButtonLink } from "@/components/ui/button-link";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "How It Works",
@@ -60,12 +61,12 @@ const flow = [
 export default function HowItWorksPage() {
   return (
     <>
-      <section className="gradient-hero border-b border-earth-200">
+      <section className="gradient-hero border-b border-border">
         <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold tracking-tight text-earth-900 sm:text-5xl">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
             How EcoRoute works
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-earth-600">
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
             Three steps from data to decisions. No complex setup, no schedule
             overhauls — just smarter transportation choices.
           </p>
@@ -83,33 +84,33 @@ export default function HowItWorksPage() {
                 }`}
               >
                 <div className={index % 2 === 1 ? "lg:order-2" : ""}>
-                  <span className="text-sm font-bold text-brand-600">
+                  <span className="text-sm font-bold text-primary">
                     Step {item.step}
                   </span>
-                  <h2 className="mt-2 text-3xl font-bold text-earth-900">
+                  <h2 className="mt-2 text-3xl font-bold">
                     {item.title}
                   </h2>
-                  <p className="mt-4 text-lg text-earth-600">
+                  <p className="mt-4 text-lg text-muted-foreground">
                     {item.description}
                   </p>
                 </div>
-                <div
-                  className={`rounded-3xl border border-earth-200 bg-white p-8 ${
-                    index % 2 === 1 ? "lg:order-1" : ""
-                  }`}
+                <Card
+                  className={index % 2 === 1 ? "lg:order-1" : ""}
                 >
-                  <ul className="space-y-3">
-                    {item.inputs.map((input) => (
-                      <li
-                        key={input}
-                        className="flex items-center gap-3 text-sm text-earth-700"
-                      >
-                        <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
-                        {input}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                  <CardContent className="pt-6">
+                    <ul className="space-y-3">
+                      {item.inputs.map((input) => (
+                        <li
+                          key={input}
+                          className="flex items-center gap-3 text-sm"
+                        >
+                          <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                          {input}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
               </div>
             ))}
           </div>
@@ -117,58 +118,66 @@ export default function HowItWorksPage() {
       </section>
 
       {/* Two tracks diagram */}
-      <section className="border-y border-earth-200 bg-white py-20">
+      <section className="border-y border-border bg-card py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-center text-3xl font-bold text-earth-900">
+          <h2 className="text-center text-3xl font-bold">
             Two tracks, one engine
           </h2>
           <div className="mt-12 grid gap-8 lg:grid-cols-3">
-            <div className="rounded-2xl border border-earth-200 p-8 text-center">
-              <Bus className="mx-auto h-10 w-10 text-brand-600" />
-              <h3 className="mt-4 font-semibold text-earth-900">
-                School Travel
-              </h3>
-              <p className="mt-2 text-sm text-earth-600">
-                Teams, field trips, away events
-              </p>
-              <Link
-                href="/for-schools"
-                className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-600"
-              >
-                Learn more <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <Bus className="mx-auto h-10 w-10 text-primary" />
+                <h3 className="mt-4 font-semibold">
+                  School Travel
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Teams, field trips, away events
+                </p>
+                <ButtonLink
+                  href="/for-schools"
+                  variant="link"
+                  className="mt-4 h-auto p-0"
+                >
+                  Learn more <ArrowRight className="h-3 w-3" />
+                </ButtonLink>
+              </CardContent>
+            </Card>
 
-            <div className="rounded-2xl border-2 border-brand-200 bg-brand-50 p-8 text-center">
-              <Brain className="mx-auto h-10 w-10 text-brand-600" />
-              <h3 className="mt-4 font-semibold text-earth-900">
-                Shared AI Engine
-              </h3>
-              <p className="mt-2 text-sm text-earth-600">
-                Clustering · Optimization · Prediction · Impact
-              </p>
-              <div className="mt-4 flex justify-center gap-2">
-                <Layers className="h-4 w-4 text-brand-500" />
-                <Database className="h-4 w-4 text-brand-500" />
-                <FileText className="h-4 w-4 text-brand-500" />
-              </div>
-            </div>
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="pt-6 text-center">
+                <Brain className="mx-auto h-10 w-10 text-primary" />
+                <h3 className="mt-4 font-semibold">
+                  Shared AI Engine
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Clustering · Optimization · Prediction · Impact
+                </p>
+                <div className="mt-4 flex justify-center gap-2">
+                  <Layers className="h-4 w-4 text-primary" />
+                  <Database className="h-4 w-4 text-primary" />
+                  <FileText className="h-4 w-4 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
 
-            <div className="rounded-2xl border border-earth-200 p-8 text-center">
-              <Car className="mx-auto h-10 w-10 text-teal-600" />
-              <h3 className="mt-4 font-semibold text-earth-900">
-                Daily Carpools
-              </h3>
-              <p className="mt-2 text-sm text-earth-600">
-                Commutes, home games, fan rides
-              </p>
-              <Link
-                href="/for-students"
-                className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-teal-600"
-              >
-                Learn more <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <Car className="mx-auto h-10 w-10 text-secondary" />
+                <h3 className="mt-4 font-semibold">
+                  Daily Carpools
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Commutes, home games, fan rides
+                </p>
+                <ButtonLink
+                  href="/for-students"
+                  variant="link"
+                  className="mt-4 h-auto p-0 text-secondary"
+                >
+                  Learn more <ArrowRight className="h-3 w-3" />
+                </ButtonLink>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>

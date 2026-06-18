@@ -15,6 +15,15 @@ import {
 import { TrackComparison } from "@/components/marketing/TrackComparison";
 import { CTASection } from "@/components/marketing/CTASection";
 import { FeatureGrid } from "@/components/marketing/FeatureGrid";
+import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button-link";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 const stats = [
   { value: "40%", label: "avg. emissions reduction potential" },
@@ -53,73 +62,57 @@ const aiFeatures = [
 export default function HomePage() {
   return (
     <>
-      {/* Hero */}
       <section className="gradient-hero">
         <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-4 py-1.5 text-sm font-medium text-brand-700">
+            <Badge variant="outline" className="mb-6 gap-1.5 px-4 py-1.5">
               <Leaf className="h-4 w-4" />
               AI for Smarter School Transportation
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight text-earth-900 sm:text-6xl">
+            </Badge>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
               Cut travel emissions{" "}
-              <span className="text-brand-600">without changing</span> your
-              schedule
+              <span className="text-primary">without changing</span> your schedule
             </h1>
-            <p className="mt-6 text-lg leading-relaxed text-earth-600 sm:text-xl">
-              EcoRoute uses AI to optimize team buses, vans, and carpools for
-              away games — and clusters neighborhood carpools for daily
-              commutes and home games.
+            <p className="mt-6 text-lg leading-relaxed text-muted-foreground sm:text-xl">
+              EcoRoute uses AI to optimize team buses, vans, and carpools for away
+              games — and clusters neighborhood carpools for daily commutes and
+              home games.
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link
-                href="/login/teacher"
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition-all hover:bg-brand-700 hover:shadow-xl"
-              >
+              <ButtonLink href="/login/teacher" size="lg">
                 I&apos;m a Teacher
                 <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="/login/student"
-                className="inline-flex items-center gap-2 rounded-xl border border-earth-300 bg-white px-6 py-3.5 text-sm font-semibold text-earth-700 transition-colors hover:bg-earth-50"
-              >
+              </ButtonLink>
+              <ButtonLink href="/login/student" variant="outline" size="lg">
                 I&apos;m a Student / Parent
                 <ArrowRight className="h-4 w-4" />
-              </Link>
+              </ButtonLink>
             </div>
           </div>
 
-          {/* Stats */}
           <div className="mx-auto mt-20 grid max-w-4xl grid-cols-2 gap-6 lg:grid-cols-4">
             {stats.map((stat) => (
-              <div
-                key={stat.label}
-                className="rounded-2xl border border-earth-200 bg-white/80 p-6 text-center backdrop-blur-sm"
-              >
-                <p className="text-3xl font-bold text-brand-600">
-                  {stat.value}
-                </p>
-                <p className="mt-1 text-sm text-earth-600">{stat.label}</p>
-              </div>
+              <Card key={stat.label} className="bg-card/80 text-center backdrop-blur-sm">
+                <CardContent className="pt-6">
+                  <p className="text-3xl font-bold text-primary">{stat.value}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Track Comparison */}
       <TrackComparison />
 
-      {/* Shared AI Engine */}
-      <section className="border-y border-earth-200 bg-white py-20">
+      <section className="border-y border-border bg-card py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <p className="text-sm font-semibold uppercase tracking-wider text-brand-600">
-              Shared AI Engine
-            </p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-earth-900 sm:text-4xl">
+            <Badge variant="secondary" className="mb-4">Shared AI Engine</Badge>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               One brain powering both tracks
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-earth-600">
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
               Clustering, optimization, prediction, and impact estimation — all
               unified so schools and families work from the same intelligence.
             </p>
@@ -130,150 +123,106 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Action Loop Preview */}
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wider text-brand-600">
-                The Action Loop
-              </p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-earth-900">
+              <Badge variant="secondary" className="mb-4">The Action Loop</Badge>
+              <h2 className="text-3xl font-bold tracking-tight">
                 From data to decisions in minutes
               </h2>
-              <p className="mt-4 text-lg text-earth-600">
-                Upload your schedule or commute info. AI analyzes emissions,
-                ranks high-impact trips, and delivers actionable plans — season
-                reports for coaches, carpool maps for student council.
+              <p className="mt-4 text-lg text-muted-foreground">
+                Upload your schedule or commute info. AI analyzes emissions, ranks
+                high-impact trips, and delivers actionable plans.
               </p>
               <div className="mt-8 space-y-4">
                 {[
-                  {
-                    icon: MapPin,
-                    text: "Input distances, rosters, and neighborhoods",
-                  },
-                  {
-                    icon: Zap,
-                    text: "AI calculates emissions and optimal vehicle configs",
-                  },
-                  {
-                    icon: Cloud,
-                    text: "Get ranked recommendations and shareable reports",
-                  },
+                  { icon: MapPin, text: "Input distances, rosters, and neighborhoods" },
+                  { icon: Zap, text: "AI calculates emissions and optimal vehicle configs" },
+                  { icon: Cloud, text: "Get ranked recommendations and shareable reports" },
                 ].map((item) => (
                   <div key={item.text} className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                       <item.icon className="h-5 w-5" />
                     </div>
-                    <span className="text-earth-700">{item.text}</span>
+                    <span>{item.text}</span>
                   </div>
                 ))}
               </div>
-              <Link
-                href="/how-it-works"
-                className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-brand-600 hover:text-brand-700"
-              >
+              <ButtonLink href="/how-it-works" variant="link" className="mt-8 h-auto p-0">
                 See how it works
                 <ArrowRight className="h-4 w-4" />
-              </Link>
+              </ButtonLink>
             </div>
 
-            <div className="rounded-3xl border border-earth-200 bg-gradient-to-br from-brand-50 to-teal-50 p-8">
-              <div className="space-y-4">
-                <div className="rounded-2xl bg-white p-5 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <Bus className="h-5 w-5 text-brand-600" />
-                    <span className="text-sm font-semibold text-earth-900">
-                      Season Emissions Report
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-earth-600">
-                    Top 3 high-impact changes for your basketball season
-                  </p>
-                  <div className="mt-3 space-y-2">
+            <Card className="bg-gradient-to-br from-primary/5 to-accent/10 p-2">
+              <CardContent className="space-y-4 p-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-3">
+                      <Bus className="h-5 w-5 text-primary" />
+                      <CardTitle className="text-sm">Season Emissions Report</CardTitle>
+                    </div>
+                    <CardDescription>
+                      Top 3 high-impact changes for your basketball season
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
                     {[
                       "Swap Game 4 opponent → saves 18% CO₂",
                       "Use 3 vans instead of bus for Game 7 → 40% less",
                       "Carpool for Game 2 (12 mi) → recommended",
                     ].map((rec) => (
-                      <div
-                        key={rec}
-                        className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-800"
-                      >
+                      <Badge key={rec} variant="secondary" className="block w-full justify-start whitespace-normal py-2">
                         {rec}
-                      </div>
+                      </Badge>
                     ))}
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
 
-                <div className="rounded-2xl bg-white p-5 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <Car className="h-5 w-5 text-teal-600" />
-                    <span className="text-sm font-semibold text-earth-900">
-                      Game Day Carpool Map
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-earth-600">
-                    4 clusters formed · 50% carpool adoption saves 1.2 tons CO₂
-                  </p>
-                  <div className="mt-3 flex gap-2">
-                    {["Oak St", "Maple Ave", "Pine Rd", "Cedar Ln"].map(
-                      (n) => (
-                        <span
-                          key={n}
-                          className="rounded-full bg-teal-50 px-3 py-1 text-xs font-medium text-teal-700"
-                        >
-                          {n}
-                        </span>
-                      ),
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-3">
+                      <Car className="h-5 w-5 text-secondary" />
+                      <CardTitle className="text-sm">Game Day Carpool Map</CardTitle>
+                    </div>
+                    <CardDescription>
+                      4 clusters formed · 50% carpool adoption saves 1.2 tons CO₂
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2">
+                    {["Oak St", "Maple Ave", "Pine Rd", "Cedar Ln"].map((n) => (
+                      <Badge key={n} variant="outline">{n}</Badge>
+                    ))}
+                  </CardContent>
+                </Card>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
 
-      {/* Social proof / who it's for */}
-      <section className="border-t border-earth-200 bg-earth-100/50 py-20">
+      <section className="border-t border-border bg-muted/50 py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-earth-900">
-              Who uses EcoRoute?
-            </h2>
-          </div>
+          <h2 className="text-center text-3xl font-bold tracking-tight">
+            Who uses EcoRoute?
+          </h2>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { icon: Users, role: "Coaches", desc: "Season travel planning" },
-              {
-                icon: Bus,
-                role: "Athletic Directors",
-                desc: "Fleet optimization",
-              },
-              {
-                icon: Car,
-                role: "Parents",
-                desc: "Morning drop-off carpools",
-              },
-              {
-                icon: Leaf,
-                role: "Sustainability Clubs",
-                desc: "Campus impact tracking",
-              },
+              { icon: Bus, role: "Athletic Directors", desc: "Fleet optimization" },
+              { icon: Car, role: "Parents", desc: "Morning drop-off carpools" },
+              { icon: Leaf, role: "Sustainability Clubs", desc: "Campus impact tracking" },
             ].map((item) => (
-              <div
-                key={item.role}
-                className="rounded-2xl border border-earth-200 bg-white p-6 text-center"
-              >
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-                  <item.icon className="h-6 w-6" />
-                </div>
-                <h3 className="mt-4 font-semibold text-earth-900">
-                  {item.role}
-                </h3>
-                <p className="mt-1 text-sm text-earth-600">{item.desc}</p>
-              </div>
+              <Card key={item.role} className="text-center">
+                <CardContent className="pt-6">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <item.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="mt-4 font-semibold">{item.role}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{item.desc}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>

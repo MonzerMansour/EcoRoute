@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { FeatureGrid } from "@/components/marketing/FeatureGrid";
 import { CTASection } from "@/components/marketing/CTASection";
+import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = {
   title: "Features",
@@ -100,12 +101,12 @@ const sharedAI = [
 export default function FeaturesPage() {
   return (
     <>
-      <section className="gradient-hero border-b border-earth-200">
+      <section className="gradient-hero border-b border-border">
         <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold tracking-tight text-earth-900 sm:text-5xl">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
             Everything EcoRoute can do
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-earth-600">
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
             Two purpose-built interfaces powered by one shared AI engine — built
             to cut school transportation emissions at every level.
           </p>
@@ -115,10 +116,8 @@ export default function FeaturesPage() {
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12">
-            <p className="text-sm font-semibold uppercase tracking-wider text-brand-600">
-              Track A
-            </p>
-            <h2 className="mt-1 text-2xl font-bold text-earth-900">
+            <Badge className="mb-1">Track A</Badge>
+            <h2 className="mt-1 text-2xl font-bold">
               Teacher & Staff Features
             </h2>
           </div>
@@ -126,13 +125,11 @@ export default function FeaturesPage() {
         </div>
       </section>
 
-      <section className="border-y border-earth-200 bg-white py-20">
+      <section className="border-y border-border bg-card py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12">
-            <p className="text-sm font-semibold uppercase tracking-wider text-teal-600">
-              Track B
-            </p>
-            <h2 className="mt-1 text-2xl font-bold text-earth-900">
+            <Badge variant="secondary" className="mb-1">Track B</Badge>
+            <h2 className="mt-1 text-2xl font-bold">
               Student & Parent Features
             </h2>
           </div>
@@ -143,13 +140,11 @@ export default function FeaturesPage() {
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12 text-center">
-            <p className="text-sm font-semibold uppercase tracking-wider text-brand-600">
-              Shared AI Engine
-            </p>
-            <h2 className="mt-1 text-2xl font-bold text-earth-900">
+            <Badge className="mb-1">Shared AI Engine</Badge>
+            <h2 className="mt-1 text-2xl font-bold">
               The glue that unifies both tracks
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-earth-600">
+            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
               Both school staff and families benefit from the same core AI
               capabilities — clustering, optimization, prediction, and impact
               estimation.

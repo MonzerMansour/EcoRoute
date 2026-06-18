@@ -1,4 +1,5 @@
 import { calculateTripEmissions, estimateSavings } from "@/core/emissions";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata = {
   title: "CO₂ Savings",
@@ -24,23 +25,29 @@ export default function StudentSavingsPage() {
 
   return (
     <>
-      <h1 className="text-3xl font-bold text-earth-900">CO₂ Savings</h1>
-      <p className="mt-2 text-earth-600">
+      <h1 className="text-3xl font-bold">CO₂ Savings</h1>
+      <p className="mt-2 text-muted-foreground">
         Annual estimate for a {DAILY_COMMUTE_MILES}-mile daily commute ({SCHOOL_DAYS} school days).
       </p>
       <dl className="mt-8 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-earth-200 bg-white p-5">
-          <dt className="text-sm text-earth-600">Baseline (solo car)</dt>
-          <dd className="mt-1 text-2xl font-bold text-earth-900">{solo.co2Kg} kg</dd>
-        </div>
-        <div className="rounded-2xl border border-earth-200 bg-white p-5">
-          <dt className="text-sm text-earth-600">With carpooling</dt>
-          <dd className="mt-1 text-2xl font-bold text-teal-700">{carpool.co2Kg} kg</dd>
-        </div>
-        <div className="rounded-2xl border border-earth-200 bg-white p-5">
-          <dt className="text-sm text-earth-600">Potential savings</dt>
-          <dd className="mt-1 text-2xl font-bold text-brand-600">{savings} kg</dd>
-        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <dt className="text-sm text-muted-foreground">Baseline (solo car)</dt>
+            <dd className="mt-1 text-2xl font-bold">{solo.co2Kg} kg</dd>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <dt className="text-sm text-muted-foreground">With carpooling</dt>
+            <dd className="mt-1 text-2xl font-bold text-secondary">{carpool.co2Kg} kg</dd>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <dt className="text-sm text-muted-foreground">Potential savings</dt>
+            <dd className="mt-1 text-2xl font-bold text-primary">{savings} kg</dd>
+          </CardContent>
+        </Card>
       </dl>
     </>
   );

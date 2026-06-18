@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   ArrowRight,
   Car,
@@ -12,6 +11,9 @@ import {
 import { FeatureGrid } from "@/components/marketing/FeatureGrid";
 import { HowItWorksSteps } from "@/components/marketing/HowItWorksSteps";
 import { CTASection } from "@/components/marketing/CTASection";
+import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button-link";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "For Students & Parents",
@@ -80,35 +82,37 @@ const steps = [
 export default function ForStudentsPage() {
   return (
     <>
-      <section className="gradient-hero border-b border-earth-200">
+      <section className="gradient-hero border-b border-border">
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-teal-100 px-3 py-1 text-sm font-medium text-teal-700">
+            <Badge variant="secondary" className="mb-4 gap-1.5 px-3 py-1">
               <GraduationCap className="h-4 w-4" />
               Track B — For Students & Parents
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight text-earth-900 sm:text-5xl">
+            </Badge>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
               Schoolwide Carpool Clustering
             </h1>
-            <p className="mt-6 text-lg text-earth-600">
+            <p className="mt-6 text-lg text-muted-foreground">
               Students, parents, and student council use EcoRoute to form
               neighborhood carpool groups for daily commutes and home games —
               making sustainable habits convenient and social.
             </p>
-            <Link
+            <ButtonLink
               href="/login/student"
-              className="mt-8 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-600/25 transition-all hover:bg-teal-700"
+              className="mt-8"
+              size="lg"
+              variant="secondary"
             >
               Sign in as Student
               <ArrowRight className="h-4 w-4" />
-            </Link>
+            </ButtonLink>
           </div>
         </div>
       </section>
 
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-center text-3xl font-bold text-earth-900">
+          <h2 className="text-center text-3xl font-bold">
             Core features for students & families
           </h2>
           <div className="mt-12">
@@ -117,47 +121,50 @@ export default function ForStudentsPage() {
         </div>
       </section>
 
-      <section className="border-y border-earth-200 bg-white py-20">
+      <section className="border-y border-border bg-card py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-center text-3xl font-bold text-earth-900">
+          <h2 className="text-center text-3xl font-bold">
             How carpool clustering works
           </h2>
           <div className="mt-16 max-w-3xl mx-auto">
-            <HowItWorksSteps steps={steps} accent="teal" />
+            <HowItWorksSteps steps={steps} accent="secondary" />
           </div>
         </div>
       </section>
 
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-3xl border border-earth-200 bg-gradient-to-br from-teal-50 to-white p-8 sm:p-12">
-            <h2 className="text-2xl font-bold text-earth-900">
-              Impact at every adoption level
-            </h2>
-            <p className="mt-2 text-earth-600">
-              See how much CO₂ your school community could save
-            </p>
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              {[
-                { pct: "30%", savings: "0.4 tons CO₂ / month" },
-                { pct: "50%", savings: "0.8 tons CO₂ / month" },
-                { pct: "70%", savings: "1.2 tons CO₂ / month" },
-              ].map((item) => (
-                <div
-                  key={item.pct}
-                  className="rounded-2xl bg-white p-6 text-center shadow-sm"
-                >
-                  <p className="text-3xl font-bold text-teal-600">
-                    {item.pct}
-                  </p>
-                  <p className="mt-1 text-sm text-earth-600">carpool adoption</p>
-                  <p className="mt-3 text-sm font-medium text-earth-800">
-                    saves {item.savings}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <Card className="bg-gradient-to-br from-secondary/5 to-background p-8 sm:p-12">
+            <CardContent className="p-0">
+              <h2 className="text-2xl font-bold">
+                Impact at every adoption level
+              </h2>
+              <p className="mt-2 text-muted-foreground">
+                See how much CO₂ your school community could save
+              </p>
+              <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                {[
+                  { pct: "30%", savings: "0.4 tons CO₂ / month" },
+                  { pct: "50%", savings: "0.8 tons CO₂ / month" },
+                  { pct: "70%", savings: "1.2 tons CO₂ / month" },
+                ].map((item) => (
+                  <Card key={item.pct}>
+                    <CardContent className="pt-6 text-center">
+                      <p className="text-3xl font-bold text-secondary">
+                        {item.pct}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        carpool adoption
+                      </p>
+                      <p className="mt-3 text-sm font-medium">
+                        saves {item.savings}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 

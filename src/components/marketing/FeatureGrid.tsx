@@ -1,5 +1,12 @@
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface FeatureCardProps {
   icon: LucideIcon;
@@ -15,18 +22,19 @@ export function FeatureCard({
   className,
 }: FeatureCardProps) {
   return (
-    <div
-      className={cn(
-        "card-hover rounded-2xl border border-earth-200 bg-white p-6",
-        className,
-      )}
-    >
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-        <Icon className="h-5 w-5" />
-      </div>
-      <h3 className="mt-4 text-lg font-semibold text-earth-900">{title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-earth-600">{description}</p>
-    </div>
+    <Card className={cn("card-hover", className)}>
+      <CardHeader>
+        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="h-5 w-5" />
+        </div>
+        <CardTitle className="text-lg">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <CardDescription className="text-sm leading-relaxed">
+          {description}
+        </CardDescription>
+      </CardContent>
+    </Card>
   );
 }
 

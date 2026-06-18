@@ -7,8 +7,8 @@ export const metadata = {
 export default function StudentDashboardPage() {
   return (
     <>
-      <h1 className="text-3xl font-bold text-earth-900">Student & Parent Dashboard</h1>
-      <p className="mt-2 text-earth-600">
+      <h1 className="text-3xl font-bold">Student & Parent Dashboard</h1>
+      <p className="mt-2 text-muted-foreground">
         Enter neighborhoods, set daily commute modes, and explore carpool clusters with CO₂
         savings estimates from the shared core.
       </p>

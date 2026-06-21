@@ -154,10 +154,23 @@ export function StudentEvents() {
     }
   }
 
-  function openPinDialog(ev: SchoolEvent) {
-    setPinEvent(ev);
-    setPinInput("");
-    setPinError("");
+  async function handleJoin(ev: SchoolEvent, pin?: string) {
+    const res = await fetch(`/api/events/events/${ev.id}/subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ studentName, action: "subscribe", pin }),
+    });
+    if (res.ok) {
+      setPinEvent(null);
+      refresh();
+      return;
+    }
+    if (res.status === 403) {
+      // Activity requires a PIN — show dialog
+      setPinEvent(ev);
+      setPinInput("");
+      setPinError("");
+    }
   }
 
   async function submitPin(e: React.FormEvent) {
@@ -296,10 +309,9 @@ export function StudentEvents() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-green-500 text-green-700 hover:bg-green-50 text-xs gap-1"
-                  onClick={() => openPinDialog(ev)}
+                  className="border-green-500 text-green-700 hover:bg-green-50 text-xs"
+                  onClick={() => handleJoin(ev)}
                 >
-                  <Lock className="h-3 w-3" />
                   Join
                 </Button>
               )}
@@ -561,10 +573,9 @@ export function StudentEvents() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="h-6 text-xs px-2 border-green-500 text-green-700 hover:bg-green-50 ml-auto gap-1"
-                                  onClick={() => openPinDialog(ev)}
+                                  className="h-6 text-xs px-2 border-green-500 text-green-700 hover:bg-green-50 ml-auto"
+                                  onClick={() => handleJoin(ev)}
                                 >
-                                  <Lock className="h-3 w-3" />
                                   Join
                                 </Button>
                               )}
@@ -655,8 +666,8 @@ export function StudentEvents() {
                     </Button>
                   </div>
                 ) : (
-                  <Button size="sm" variant="outline" className="h-7 text-xs border-green-500 text-green-700 gap-1" onClick={() => { setEditingEvent(null); openPinDialog(editingEvent); }}>
-                    <Lock className="h-3 w-3" /> Join
+                  <Button size="sm" variant="outline" className="h-7 text-xs border-green-500 text-green-700" onClick={() => { setEditingEvent(null); handleJoin(editingEvent); }}>
+                    Join
                   </Button>
                 )}
               </div>

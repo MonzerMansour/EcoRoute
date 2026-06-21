@@ -17,7 +17,8 @@ export default auth((req) => {
 
   const isTeacherArea = path.startsWith("/teacher") || path.startsWith("/api/teacher");
   const isStudentArea = path.startsWith("/student") || path.startsWith("/api/student");
-  if (!isTeacherArea && !isStudentArea) return;
+  const isEventsApi = path.startsWith("/api/events");
+  if (!isTeacherArea && !isStudentArea && !isEventsApi) return;
 
   const isApi = path.startsWith("/api/");
 
@@ -43,5 +44,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/teacher/:path*", "/student/:path*", "/api/teacher/:path*"],
+  matcher: ["/teacher/:path*", "/student/:path*", "/api/teacher/:path*", "/api/events/:path*"],
 };

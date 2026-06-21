@@ -23,24 +23,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  loadActivities,
-  saveActivities,
-  addActivity,
-  deleteActivity,
-  loadEvents,
-  addEvent,
-  updateEvent,
-  deleteEvent,
-  loadNotifications,
-  saveNotifications,
-  type Activity,
-  type SchoolEvent,
-  type Notification,
-} from "@/lib/store/events";
+import type { Activity, SchoolEvent, Notification } from "@/lib/store/events";
 
 const COORDINATOR_ID = "coordinator";
 const SCHOOL = "EcoRoute High";
+
+async function apiFetch(url: string, opts?: RequestInit) {
+  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 
 interface ActivityFormState {
   name: string;
@@ -111,15 +103,18 @@ export function ActivitiesManager() {
   // Optimizer dialog — linked to a specific event
   const [optimizerEvent, setOptimizerEvent] = useState<SchoolEvent | null>(null);
 
-  const refresh = useCallback(() => {
-    setActivities(loadActivities());
-    setEvents(loadEvents());
-    setNotifications(loadNotifications());
+  const refresh = useCallback(async () => {
+    const [acts, evs, notifs] = await Promise.all([
+      apiFetch("/api/events/activities"),
+      apiFetch("/api/events/events"),
+      apiFetch("/api/events/notifications"),
+    ]);
+    setActivities(acts);
+    setEvents(evs);
+    setNotifications(notifs);
   }, []);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  useEffect(() => { refresh(); }, [refresh]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -146,29 +141,30 @@ export function ActivitiesManager() {
     setActivityDialogOpen(true);
   }
 
-  function handleSaveActivity() {
+  async function handleSaveActivity() {
     if (!activityForm.name.trim()) return;
     if (editingActivity) {
-      const updated = activities.map((a) =>
-        a.id === editingActivity.id
-          ? { ...a, name: activityForm.name.trim(), description: activityForm.description.trim() }
-          : a,
-      );
-      saveActivities(updated);
+      await apiFetch(`/api/events/activities/${editingActivity.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: activityForm.name.trim(), description: activityForm.description.trim() }),
+      });
     } else {
-      addActivity({
-        name: activityForm.name.trim(),
-        description: activityForm.description.trim() || undefined,
-        coordinatorId: COORDINATOR_ID,
-        school: SCHOOL,
+      await apiFetch("/api/events/activities", {
+        method: "POST",
+        body: JSON.stringify({
+          name: activityForm.name.trim(),
+          description: activityForm.description.trim() || undefined,
+          coordinatorId: COORDINATOR_ID,
+          school: SCHOOL,
+        }),
       });
     }
     setActivityDialogOpen(false);
     refresh();
   }
 
-  function handleDeleteActivity(id: string) {
-    deleteActivity(id);
+  async function handleDeleteActivity(id: string) {
+    await apiFetch(`/api/events/activities/${id}`, { method: "DELETE" });
     if (selectedActivityId === id) setSelectedActivityId(null);
     refresh();
   }
@@ -196,7 +192,7 @@ export function ActivitiesManager() {
     setEventDialogOpen(true);
   }
 
-  function handleSaveEvent() {
+  async function handleSaveEvent() {
     if (!eventForm.title.trim() || !eventForm.date || !selectedActivityId) return;
     const payload = {
       activityId: selectedActivityId,
@@ -211,24 +207,24 @@ export function ActivitiesManager() {
       chosenVehicleCo2Kg: eventForm.chosenVehicleCo2Kg ? Number(eventForm.chosenVehicleCo2Kg) : undefined,
     };
     if (editingEvent) {
-      updateEvent(editingEvent.id, payload);
+      await apiFetch(`/api/events/events/${editingEvent.id}`, { method: "PATCH", body: JSON.stringify(payload) });
     } else {
-      addEvent(payload);
+      await apiFetch("/api/events/events", { method: "POST", body: JSON.stringify(payload) });
     }
     setEventDialogOpen(false);
     refresh();
   }
 
-  function handleDeleteEvent(id: string) {
-    deleteEvent(id);
+  async function handleDeleteEvent(id: string) {
+    await apiFetch(`/api/events/events/${id}`, { method: "DELETE" });
     refresh();
   }
 
-  function handleOptimizerPlan(plan: RankedVehiclePlan) {
+  async function handleOptimizerPlan(plan: RankedVehiclePlan) {
     if (!optimizerEvent) return;
-    updateEvent(optimizerEvent.id, {
-      chosenVehicle: plan.label,
-      chosenVehicleCo2Kg: plan.co2Kg,
+    await apiFetch(`/api/events/events/${optimizerEvent.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ chosenVehicle: plan.label, chosenVehicleCo2Kg: plan.co2Kg }),
     });
     setOptimizerEvent(null);
     refresh();
@@ -238,8 +234,8 @@ export function ActivitiesManager() {
     setNotifDialogOpen(true);
   }
 
-  function handleMarkAllRead() {
-    saveNotifications(notifications.map((n) => ({ ...n, read: true })));
+  async function handleMarkAllRead() {
+    await apiFetch("/api/events/notifications", { method: "POST" });
     refresh();
   }
 

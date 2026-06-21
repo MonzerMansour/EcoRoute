@@ -8,15 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  loadEvents,
-  loadActivities,
-  subscribeToEvent,
-  unsubscribeFromEvent,
-  type SchoolEvent,
-  type Activity,
-} from "@/lib/store/events";
+import type { SchoolEvent, Activity } from "@/lib/store/events";
 import { formatCo2 } from "@/core/emissions";
+
+async function apiFetch(url: string, opts?: RequestInit) {
+  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 
 const STUDENT_NAME_KEY = "ecoroute_student_name";
 const MY_ACTIVITY_IDS_KEY = "ecoroute_my_activity_ids";
@@ -39,21 +38,24 @@ export function StudentEvents() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
 
+  const refresh = useCallback(async () => {
+    const [evs, acts] = await Promise.all([
+      apiFetch("/api/events/events"),
+      apiFetch("/api/events/activities"),
+    ]);
+    setEvents(evs);
+    setActivities(acts);
+  }, []);
+
   useEffect(() => {
     const saved = localStorage.getItem(STUDENT_NAME_KEY) ?? "";
     setStudentName(saved);
-    setEvents(loadEvents());
-    setActivities(loadActivities());
+    refresh();
     try {
       const ids = localStorage.getItem(MY_ACTIVITY_IDS_KEY);
       if (ids) setMyActivityIds(JSON.parse(ids));
     } catch { /* ignore */ }
-  }, []);
-
-  const refresh = useCallback(() => {
-    setEvents(loadEvents());
-    setActivities(loadActivities());
-  }, []);
+  }, [refresh]);
 
   function saveName() {
     if (!nameInput.trim()) return;
@@ -69,8 +71,11 @@ export function StudentEvents() {
     });
   }
 
-  function handleSubscribe(eventId: string) {
-    subscribeToEvent(eventId, studentName);
+  async function handleSubscribe(eventId: string) {
+    await apiFetch(`/api/events/events/${eventId}/subscribe`, {
+      method: "POST",
+      body: JSON.stringify({ studentName, action: "subscribe" }),
+    });
     refresh();
     setFlashIds((prev) => new Set(prev).add(eventId));
     setTimeout(() => {
@@ -78,8 +83,11 @@ export function StudentEvents() {
     }, 2000);
   }
 
-  function handleUnsubscribe(eventId: string) {
-    unsubscribeFromEvent(eventId, studentName);
+  async function handleUnsubscribe(eventId: string) {
+    await apiFetch(`/api/events/events/${eventId}/subscribe`, {
+      method: "POST",
+      body: JSON.stringify({ studentName, action: "unsubscribe" }),
+    });
     refresh();
   }
 

@@ -111,15 +111,17 @@ export function ActivitiesManager() {
   const [optimizerEvent, setOptimizerEvent] = useState<SchoolEvent | null>(null);
 
   const refresh = useCallback(async () => {
+    if (!coordinatorEmail) return;
     const [acts, evs, notifs] = await Promise.all([
-      apiFetch("/api/events/activities?includePin=true"),
+      apiFetch(`/api/events/activities?includePin=true&email=${encodeURIComponent(coordinatorEmail)}`),
       apiFetch("/api/events/events"),
       apiFetch("/api/events/notifications"),
     ]);
+    const myActivityIds = new Set((acts as Activity[]).map((a) => a.id));
     setActivities(acts);
-    setEvents(evs);
+    setEvents((evs as SchoolEvent[]).filter((e) => myActivityIds.has(e.activityId)));
     setNotifications(notifs);
-  }, []);
+  }, [coordinatorEmail]);
 
   const refreshJoinRequests = useCallback(async () => {
     if (!coordinatorEmail) return;

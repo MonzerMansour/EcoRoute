@@ -1,6 +1,7 @@
 import { TrendingDown, Bus, Route, Leaf, TreePine } from "lucide-react";
 import { getTripRepository } from "@/lib/data";
 import { getOwnerId } from "@/lib/session";
+import { getActivityTrips } from "@/lib/data/activity-trips";
 import { buildSeasonSummary } from "@/core/season";
 import { formatCo2 } from "@/core/emissions";
 import { AiSeasonReport } from "@/teacher/components/AiSeasonReport";
@@ -19,8 +20,11 @@ export const metadata = { title: "Emissions Dashboard" };
 
 export default async function TeacherDashboardPage() {
   const ownerId = await getOwnerId();
-  const trips = await getTripRepository().listTrips(ownerId);
-  const summary = buildSeasonSummary(trips);
+  const [trips, activityTrips] = await Promise.all([
+    getTripRepository().listTrips(ownerId),
+    getActivityTrips(ownerId),
+  ]);
+  const summary = buildSeasonSummary([...trips, ...activityTrips]);
 
   const baselinePct =
     summary.baselineTotalCo2Kg > 0

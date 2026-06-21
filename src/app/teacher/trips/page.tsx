@@ -1,12 +1,16 @@
 import { getTripRepository } from "@/lib/data";
 import { getOwnerId } from "@/lib/session";
+import { getActivityTrips } from "@/lib/data/activity-trips";
 import { TripManager } from "@/teacher/components/TripManager";
 
 export const metadata = { title: "Outside Trips" };
 
 export default async function TeacherTripsPage() {
   const ownerId = await getOwnerId();
-  const trips = await getTripRepository().listTrips(ownerId);
+  const [trips, activityTrips] = await Promise.all([
+    getTripRepository().listTrips(ownerId),
+    getActivityTrips(ownerId),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -18,7 +22,7 @@ export default async function TeacherTripsPage() {
           recommendations.
         </p>
       </div>
-      <TripManager initialTrips={trips} />
+      <TripManager initialTrips={trips} activityTrips={activityTrips} />
     </div>
   );
 }

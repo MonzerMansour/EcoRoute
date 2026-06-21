@@ -82,7 +82,9 @@ function groupTripsByMonth(trips: Trip[]): { monthLabel: string; trips: Trip[] }
   });
 }
 
-export function TripManager({ initialTrips }: { initialTrips: Trip[] }) {
+type ActivityTrip = Trip & { activityLabel: string };
+
+export function TripManager({ initialTrips, activityTrips = [] }: { initialTrips: Trip[]; activityTrips?: ActivityTrip[] }) {
   const router = useRouter();
   const [trips, setTrips] = useState<Trip[]>(initialTrips);
   const [fleet, setFleet] = useState<FleetEntry[]>([]);
@@ -193,6 +195,8 @@ export function TripManager({ initialTrips }: { initialTrips: Trip[] }) {
   }
 
   const grouped = groupTripsByMonth(trips);
+  const groupedActivity = groupTripsByMonth(activityTrips);
+  const activityLabelMap = new Map(activityTrips.map((t) => [t.id, t.activityLabel]));
 
   return (
     <Card>
@@ -243,137 +247,134 @@ export function TripManager({ initialTrips }: { initialTrips: Trip[] }) {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        {trips.length === 0 ? (
+      <CardContent className="space-y-6">
+        {/* ── Manual trips ── */}
+        {trips.length === 0 && activityTrips.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            No trips yet. Click <strong>Add trip</strong> to plan your season.
+            No trips yet. Click <strong>Add trip</strong> to plan your season, or add events to your activities.
           </p>
         ) : view === "list" ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Trip</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="text-right">Distance</TableHead>
-                <TableHead className="text-right">Roster</TableHead>
-                <TableHead>Chosen</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {trips.map((trip) => (
-                <TableRow key={trip.id}>
-                  <TableCell className="font-medium">
-                    {trip.name}
-                    <span className="block text-xs text-muted-foreground">
-                      {trip.opponent}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(trip.date)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">
-                      {TRIP_TYPE_LABELS[trip.tripType]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {trip.distanceMiles} mi
-                  </TableCell>
-                  <TableCell className="text-right">{trip.rosterSize}</TableCell>
-                  <TableCell>
-                    {trip.chosenVehicleType ? (
-                      <div className="flex flex-col gap-0.5">
-                        <Badge variant="outline">
-                          {VEHICLE_SPECS[trip.chosenVehicleType].shortLabel}
-                        </Badge>
-                        {fleetMpgForType(trip.chosenVehicleType) && (
-                          <span className="text-xs text-muted-foreground">
-                            {fleetMpgForType(trip.chosenVehicleType)} mpg
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => openEdit(trip)}
-                        aria-label="Edit trip"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => remove(trip.id)}
-                        disabled={deletingId === trip.id}
-                        aria-label="Delete trip"
-                      >
-                        {deletingId === trip.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+          <>
+            {trips.length > 0 && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Trip</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Distance</TableHead>
+                    <TableHead className="text-right">Roster</TableHead>
+                    <TableHead>Chosen</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {trips.map((trip) => (
+                    <TableRow key={trip.id}>
+                      <TableCell className="font-medium">
+                        {trip.name}
+                        <span className="block text-xs text-muted-foreground">{trip.opponent}</span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(trip.date)}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{TRIP_TYPE_LABELS[trip.tripType]}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{trip.distanceMiles} mi</TableCell>
+                      <TableCell className="text-right">{trip.rosterSize}</TableCell>
+                      <TableCell>
+                        {trip.chosenVehicleType ? (
+                          <div className="flex flex-col gap-0.5">
+                            <Badge variant="outline">{VEHICLE_SPECS[trip.chosenVehicleType].shortLabel}</Badge>
+                            {fleetMpgForType(trip.chosenVehicleType) && (
+                              <span className="text-xs text-muted-foreground">{fleetMpgForType(trip.chosenVehicleType)} mpg</span>
+                            )}
+                          </div>
                         ) : (
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon-sm" onClick={() => openEdit(trip)} aria-label="Edit trip">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon-sm" onClick={() => remove(trip.id)} disabled={deletingId === trip.id} aria-label="Delete trip">
+                            {deletingId === trip.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 text-destructive" />}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+
+            {/* ── Activity events as trips ── */}
+            {activityTrips.length > 0 && (
+              <div className="space-y-3">
+                {trips.length > 0 && <div className="border-t" />}
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  From Activities ({activityTrips.length})
+                </p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Activity</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Distance</TableHead>
+                      <TableHead className="text-right">Roster</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {activityTrips.map((trip) => (
+                      <TableRow key={trip.id}>
+                        <TableCell className="font-medium">
+                          {trip.name}
+                          {trip.opponent && <span className="block text-xs text-muted-foreground">{trip.opponent}</span>}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+                            {activityLabelMap.get(trip.id)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(trip.date)}</TableCell>
+                        <TableCell className="text-right">{trip.distanceMiles} mi</TableCell>
+                        <TableCell className="text-right">{trip.rosterSize || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <p className="text-xs text-muted-foreground">Manage these events in the Activities tab.</p>
+              </div>
+            )}
+          </>
         ) : (
+          /* ── Calendar view ── */
           <div className="space-y-6">
             {grouped.map(({ monthLabel, trips: monthTrips }) => (
               <div key={monthLabel}>
-                <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  {monthLabel}
-                </h3>
+                <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">{monthLabel}</h3>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {monthTrips.map((trip) => (
-                    <div
-                      key={trip.id}
-                      className="rounded-lg border border-border bg-card p-3 flex flex-col gap-1"
-                    >
+                    <div key={trip.id} className="rounded-lg border border-border bg-card p-3 flex flex-col gap-1">
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="text-sm font-medium leading-tight">{trip.name}</p>
                           <p className="text-xs text-muted-foreground">{trip.opponent}</p>
                         </div>
                         <div className="flex gap-1 shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => openEdit(trip)}
-                            aria-label="Edit trip"
-                          >
+                          <Button variant="ghost" size="icon-sm" onClick={() => openEdit(trip)} aria-label="Edit trip">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => remove(trip.id)}
-                            disabled={deletingId === trip.id}
-                            aria-label="Delete trip"
-                          >
-                            {deletingId === trip.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                            )}
+                          <Button variant="ghost" size="icon-sm" onClick={() => remove(trip.id)} disabled={deletingId === trip.id} aria-label="Delete trip">
+                            {deletingId === trip.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 text-destructive" />}
                           </Button>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs text-muted-foreground">{formatDate(trip.date)}</span>
-                        <Badge variant="secondary" className="text-xs py-0">
-                          {TRIP_TYPE_LABELS[trip.tripType]}
-                        </Badge>
+                        <Badge variant="secondary" className="text-xs py-0">{TRIP_TYPE_LABELS[trip.tripType]}</Badge>
                         <span className="text-xs text-muted-foreground">{trip.distanceMiles} mi</span>
                         {trip.chosenVehicleType && (
                           <Badge variant="outline" className="text-xs py-0">
@@ -387,6 +388,43 @@ export function TripManager({ initialTrips }: { initialTrips: Trip[] }) {
                 </div>
               </div>
             ))}
+
+            {/* Activity trips in calendar view */}
+            {activityTrips.length > 0 && (
+              <>
+                {trips.length > 0 && <div className="border-t pt-2" />}
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  From Activities
+                </p>
+                {groupedActivity.map(({ monthLabel, trips: monthTrips }) => (
+                  <div key={`act-${monthLabel}`}>
+                    <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">{monthLabel}</h3>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {monthTrips.map((trip) => (
+                        <div key={trip.id} className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 flex flex-col gap-1">
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs py-0">
+                                {activityLabelMap.get(trip.id)}
+                              </Badge>
+                            </div>
+                            <p className="text-sm font-medium leading-tight">{trip.name}</p>
+                            {trip.opponent && <p className="text-xs text-muted-foreground">{trip.opponent}</p>}
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs text-muted-foreground">{formatDate(trip.date)}</span>
+                            <span className="text-xs text-muted-foreground">{trip.distanceMiles} mi</span>
+                            {trip.rosterSize > 0 && (
+                              <span className="text-xs text-muted-foreground">{trip.rosterSize} students</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
       </CardContent>

@@ -111,3 +111,75 @@ export async function markAllRead(): Promise<void> {
   if (isSupabaseConfigured()) return supabase.dbMarkAllRead();
   mem().notifications.forEach((n) => { n.read = true; });
 }
+
+// ── Join Requests ────────────────────────────────────────────────────────────
+
+import type { JoinRequest } from "@/lib/store/join-requests";
+
+interface JoinRequestStore { joinRequests: JoinRequest[] }
+const gr = globalThis as unknown as { __ecoRouteJR?: JoinRequestStore };
+function jrMem(): JoinRequestStore {
+  if (!gr.__ecoRouteJR) gr.__ecoRouteJR = { joinRequests: [] };
+  return gr.__ecoRouteJR;
+}
+function jrUid() { return `jr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`; }
+
+export async function listJoinRequests(filter?: { activityIds?: string[]; studentName?: string }): Promise<JoinRequest[]> {
+  if (isSupabaseConfigured()) {
+    const { getSupabase } = await import("@/lib/data/supabase-client");
+    const db = getSupabase()!;
+    let q = db.from("join_requests").select("*").order("created_at", { ascending: false });
+    if (filter?.activityIds?.length) q = q.in("activity_id", filter.activityIds);
+    if (filter?.studentName) q = q.eq("student_name", filter.studentName);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data ?? []).map(rowToJR);
+  }
+  let results = jrMem().joinRequests;
+  if (filter?.activityIds?.length) results = results.filter(r => filter.activityIds!.includes(r.activityId));
+  if (filter?.studentName) results = results.filter(r => r.studentName === filter.studentName);
+  return results;
+}
+
+export async function createJoinRequest(data: { activityId: string; studentName: string; studentEmail?: string }): Promise<JoinRequest> {
+  if (isSupabaseConfigured()) {
+    const { getSupabase } = await import("@/lib/data/supabase-client");
+    const db = getSupabase()!;
+    const { data: row, error } = await db.from("join_requests")
+      .upsert({ activity_id: data.activityId, student_name: data.studentName, student_email: data.studentEmail ?? null, status: "pending", updated_at: now() }, { onConflict: "activity_id,student_name" })
+      .select("*").single();
+    if (error) throw error;
+    return rowToJR(row);
+  }
+  const existing = jrMem().joinRequests.find(r => r.activityId === data.activityId && r.studentName === data.studentName);
+  if (existing) { existing.status = "pending"; existing.updatedAt = now(); return existing; }
+  const entry: JoinRequest = { id: jrUid(), activityId: data.activityId, studentName: data.studentName, studentEmail: data.studentEmail, status: "pending", createdAt: now(), updatedAt: now() };
+  jrMem().joinRequests.unshift(entry);
+  return entry;
+}
+
+export async function updateJoinRequest(id: string, status: "approved" | "denied"): Promise<JoinRequest | null> {
+  if (isSupabaseConfigured()) {
+    const { getSupabase } = await import("@/lib/data/supabase-client");
+    const db = getSupabase()!;
+    const { data: row, error } = await db.from("join_requests").update({ status, updated_at: now() }).eq("id", id).select("*").maybeSingle();
+    if (error) throw error;
+    return row ? rowToJR(row) : null;
+  }
+  const idx = jrMem().joinRequests.findIndex(r => r.id === id);
+  if (idx === -1) return null;
+  jrMem().joinRequests[idx] = { ...jrMem().joinRequests[idx], status, updatedAt: now() };
+  return jrMem().joinRequests[idx];
+}
+
+function rowToJR(r: Record<string, unknown>): JoinRequest {
+  return {
+    id: r.id as string,
+    activityId: r.activity_id as string,
+    studentName: r.student_name as string,
+    studentEmail: (r.student_email as string) ?? undefined,
+    status: (r.status as "pending" | "approved" | "denied"),
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
+  };
+}

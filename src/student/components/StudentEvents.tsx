@@ -3,11 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   CheckCircle2,
+  Clock,
   Search,
   Loader2,
   List,
   CalendarDays,
   Pencil,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import type { SchoolEvent, Activity } from "@/lib/store/events";
+import type { JoinRequest } from "@/lib/store/join-requests";
 import { formatCo2 } from "@/core/emissions";
 import { cn } from "@/lib/utils";
 
@@ -61,23 +64,22 @@ function groupByMonth(evs: SchoolEvent[]): { monthLabel: string; events: SchoolE
   return Array.from(map.entries()).map(([key, events]) => {
     const [year, month] = key.split("-");
     const label = new Date(Number(year), Number(month) - 1, 1).toLocaleDateString(undefined, {
-      month: "long",
-      year: "numeric",
+      month: "long", year: "numeric",
     });
     return { monthLabel: label, events };
   });
 }
 
-interface StudentNotes {
-  [eventId: string]: string;
-}
+interface StudentNotes { [eventId: string]: string }
 
 export function StudentEvents() {
   const [studentName, setStudentName] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [events, setEvents] = useState<SchoolEvent[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  // myActivityIds = approved activities (stored locally as cache of approved requests)
   const [myActivityIds, setMyActivityIds] = useState<string[]>([]);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
   const [view, setView] = useState<"list" | "calendar">("list");
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
@@ -86,8 +88,9 @@ export function StudentEvents() {
   const [coordEmail, setCoordEmail] = useState("");
   const [coordLookupState, setCoordLookupState] = useState<"idle" | "loading" | "done" | "none">("idle");
   const [coordResults, setCoordResults] = useState<Activity[]>([]);
+  const [requestingId, setRequestingId] = useState<string | null>(null);
 
-  // Edit dialog
+  // Edit event dialog
   const [editingEvent, setEditingEvent] = useState<SchoolEvent | null>(null);
   const [editNote, setEditNote] = useState("");
   const [studentNotes, setStudentNotes] = useState<StudentNotes>({});
@@ -101,6 +104,27 @@ export function StudentEvents() {
     setActivities(acts);
   }, []);
 
+  const refreshJoinRequests = useCallback(async (name: string) => {
+    if (!name) return;
+    try {
+      const data = await apiFetch(`/api/events/join-requests?studentName=${encodeURIComponent(name)}`);
+      if (Array.isArray(data)) {
+        setJoinRequests(data);
+        // Sync approved activities into myActivityIds
+        const approvedIds = (data as JoinRequest[])
+          .filter((r) => r.status === "approved")
+          .map((r) => r.activityId);
+        if (approvedIds.length > 0) {
+          setMyActivityIds((prev) => {
+            const merged = Array.from(new Set([...prev, ...approvedIds]));
+            localStorage.setItem(MY_ACTIVITY_IDS_KEY, JSON.stringify(merged));
+            return merged;
+          });
+        }
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     const saved = localStorage.getItem(STUDENT_NAME_KEY) ?? "";
     setStudentName(saved);
@@ -111,20 +135,37 @@ export function StudentEvents() {
       const notes = localStorage.getItem(STUDENT_NOTES_KEY);
       if (notes) setStudentNotes(JSON.parse(notes));
     } catch { /* ignore */ }
-  }, [refresh]);
+    if (saved) refreshJoinRequests(saved);
+  }, [refresh, refreshJoinRequests]);
 
   function saveName() {
     if (!nameInput.trim()) return;
     localStorage.setItem(STUDENT_NAME_KEY, nameInput.trim());
     setStudentName(nameInput.trim());
+    refreshJoinRequests(nameInput.trim());
   }
 
-  function toggleActivity(id: string) {
+  function removeActivity(id: string) {
     setMyActivityIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      const next = prev.filter((x) => x !== id);
       localStorage.setItem(MY_ACTIVITY_IDS_KEY, JSON.stringify(next));
       return next;
     });
+  }
+
+  async function handleRequestJoin(activityId: string) {
+    setRequestingId(activityId);
+    try {
+      await apiFetch("/api/events/join-requests", {
+        method: "POST",
+        body: JSON.stringify({ activityId, studentName }),
+      });
+      await refreshJoinRequests(studentName);
+      // Merge activity into local list so it shows up immediately
+      setActivities((prev) => prev); // already there from lookup
+    } catch { /* ignore */ } finally {
+      setRequestingId(null);
+    }
   }
 
   async function handleSubscribe(eventId: string) {
@@ -152,17 +193,17 @@ export function StudentEvents() {
     setCoordLookupState("loading");
     setCoordResults([]);
     try {
-      const [actData, evData] = await Promise.all([
-        apiFetch(`/api/events/activities?email=${encodeURIComponent(coordEmail.trim())}`),
-        apiFetch("/api/events/events"),
-      ]);
+      const actData = await apiFetch(`/api/events/activities?email=${encodeURIComponent(coordEmail.trim())}`);
       if (Array.isArray(actData) && actData.length > 0) {
         setCoordResults(actData);
         setCoordLookupState("done");
+        // Merge into activities state so they're available
         setActivities((prev) => {
           const existingIds = new Set(prev.map((a) => a.id));
           return [...prev, ...actData.filter((a: Activity) => !existingIds.has(a.id))];
         });
+        // Also fetch latest events
+        const evData = await apiFetch("/api/events/events");
         if (Array.isArray(evData)) setEvents(evData);
       } else {
         setCoordLookupState("none");
@@ -183,6 +224,12 @@ export function StudentEvents() {
     setStudentNotes(updated);
     localStorage.setItem(STUDENT_NOTES_KEY, JSON.stringify(updated));
     setEditingEvent(null);
+  }
+
+  // Helper: request status for an activity
+  function requestStatus(activityId: string): JoinRequest["status"] | "none" {
+    const req = joinRequests.find((r) => r.activityId === activityId);
+    return req ? req.status : "none";
   }
 
   // Name prompt
@@ -208,10 +255,8 @@ export function StudentEvents() {
   }
 
   const today = todayStr();
-
-  // Only show activities this student indicated they're part of (set at signup or via lookup)
+  // Only show activities this student is approved for
   const myActivities = activities.filter((a) => myActivityIds.includes(a.id));
-
   const myEvents = events.filter((ev) => myActivityIds.includes(ev.activityId));
   const activeActivity = myActivities.find((a) => a.id === selectedActivityId) ?? null;
   const activeEvents = selectedActivityId
@@ -236,11 +281,7 @@ export function StudentEvents() {
         </div>
       );
     }
-    return (
-      <p className="mt-1.5 text-xs text-muted-foreground italic">
-        Transportation not yet decided
-      </p>
-    );
+    return <p className="mt-1.5 text-xs text-muted-foreground italic">Transportation not yet decided</p>;
   }
 
   function renderEventCard(ev: SchoolEvent) {
@@ -265,9 +306,7 @@ export function StudentEvents() {
               {ev.distanceMiles !== undefined && (
                 <p className="mt-0.5 text-xs text-muted-foreground">{ev.distanceMiles} miles away</p>
               )}
-              {ev.notes && (
-                <p className="mt-0.5 text-xs text-muted-foreground">{ev.notes}</p>
-              )}
+              {ev.notes && <p className="mt-0.5 text-xs text-muted-foreground">{ev.notes}</p>}
               {renderVehicleBadge(ev)}
               {myNote && (
                 <p className="mt-1.5 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-1">
@@ -276,25 +315,13 @@ export function StudentEvents() {
               )}
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => openEdit(ev)}
-                aria-label="Edit my details"
-              >
+              <Button variant="ghost" size="icon-sm" onClick={() => openEdit(ev)} aria-label="Edit my details">
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
               {isSubscribed ? (
-                <Button size="sm" variant="ghost" className="text-xs" onClick={() => handleUnsubscribe(ev.id)}>
-                  Leave
-                </Button>
+                <Button size="sm" variant="ghost" className="text-xs" onClick={() => handleUnsubscribe(ev.id)}>Leave</Button>
               ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-green-500 text-green-700 hover:bg-green-50 text-xs"
-                  onClick={() => handleSubscribe(ev.id)}
-                >
+                <Button size="sm" variant="outline" className="border-green-500 text-green-700 hover:bg-green-50 text-xs" onClick={() => handleSubscribe(ev.id)}>
                   Join
                 </Button>
               )}
@@ -304,6 +331,39 @@ export function StudentEvents() {
           </div>
         </CardContent>
       </Card>
+    );
+  }
+
+  function renderJoinButton(a: Activity) {
+    const status = requestStatus(a.id);
+    const isApproved = myActivityIds.includes(a.id);
+    if (isApproved) return null; // already in their list, shown there
+    if (status === "pending") {
+      return (
+        <div className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+          <Clock className="h-3 w-3" />
+          Pending approval
+        </div>
+      );
+    }
+    if (status === "denied") {
+      return (
+        <div className="flex items-center gap-1 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded px-2 py-1">
+          <XCircle className="h-3 w-3" />
+          Request denied
+        </div>
+      );
+    }
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 text-xs"
+        disabled={requestingId === a.id}
+        onClick={() => handleRequestJoin(a.id)}
+      >
+        {requestingId === a.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Request to Join"}
+      </Button>
     );
   }
 
@@ -325,26 +385,20 @@ export function StudentEvents() {
               onClick={() => setView("list")}
               className={cn(
                 "px-3 py-1.5 text-xs flex items-center gap-1 transition-colors",
-                view === "list"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted"
+                view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
               )}
             >
-              <List className="h-3.5 w-3.5" />
-              List
+              <List className="h-3.5 w-3.5" /> List
             </button>
             <button
               type="button"
               onClick={() => setView("calendar")}
               className={cn(
                 "px-3 py-1.5 text-xs flex items-center gap-1 transition-colors",
-                view === "calendar"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted"
+                view === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
               )}
             >
-              <CalendarDays className="h-3.5 w-3.5" />
-              Calendar
+              <CalendarDays className="h-3.5 w-3.5" /> Calendar
             </button>
           </div>
         )}
@@ -356,13 +410,13 @@ export function StudentEvents() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">My Activities</CardTitle>
             <CardDescription className="text-xs">
-              Your activities from when you signed up. Click one to filter events.
+              Activities your coordinator approved you for.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-1 p-3 pt-0">
             {myActivities.length === 0 ? (
               <p className="py-3 text-xs text-muted-foreground">
-                No activities yet. Use the lookup below to add one.
+                No approved activities yet. Use the lookup below to find your coordinator and request to join.
               </p>
             ) : (
               myActivities.map((a) => {
@@ -372,9 +426,7 @@ export function StudentEvents() {
                     key={a.id}
                     className={cn(
                       "cursor-pointer rounded-lg border p-3 transition-colors",
-                      selectedActivityId === a.id
-                        ? "border-primary bg-primary/5"
-                        : "hover:bg-muted/50"
+                      selectedActivityId === a.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"
                     )}
                     onClick={() => setSelectedActivityId((prev) => prev === a.id ? null : a.id)}
                   >
@@ -390,7 +442,7 @@ export function StudentEvents() {
                       </div>
                       <button
                         className="shrink-0 mt-0.5"
-                        onClick={(e) => { e.stopPropagation(); toggleActivity(a.id); }}
+                        onClick={(e) => { e.stopPropagation(); removeActivity(a.id); }}
                         title="Remove from my activities"
                       >
                         <CheckCircle2 className="h-5 w-5 text-primary" />
@@ -402,8 +454,8 @@ export function StudentEvents() {
             )}
 
             {/* Coordinator lookup */}
-            <div className="space-y-2 pt-2">
-              <p className="text-xs font-medium text-muted-foreground">Find a coordinator by email</p>
+            <div className="space-y-2 pt-3 border-t mt-2">
+              <p className="text-xs font-medium text-muted-foreground">Find coordinator by email</p>
               <div className="flex gap-2">
                 <Input
                   placeholder="coach@school.edu"
@@ -432,18 +484,12 @@ export function StudentEvents() {
                 <p className="text-xs text-muted-foreground">No activities found for that coordinator.</p>
               )}
               {coordLookupState === "done" && coordResults.length > 0 && (
-                <div className="space-y-1">
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground">Select an activity to request access:</p>
                   {coordResults.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between rounded border p-2 text-xs">
-                      <span>{a.name}</span>
-                      <Button
-                        size="sm"
-                        variant={myActivityIds.includes(a.id) ? "secondary" : "outline"}
-                        className="h-6 text-xs px-2"
-                        onClick={() => toggleActivity(a.id)}
-                      >
-                        {myActivityIds.includes(a.id) ? "✓" : "Follow"}
-                      </Button>
+                    <div key={a.id} className="flex items-center justify-between rounded border p-2 gap-2">
+                      <span className="text-xs font-medium truncate">{a.name}</span>
+                      {renderJoinButton(a)}
                     </div>
                   ))}
                 </div>
@@ -466,7 +512,7 @@ export function StudentEvents() {
           {!activeActivity && myActivities.length === 0 && (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Add an activity on the left to see its events here.
+                Request to join an activity on the left — your coordinator will approve it.
               </CardContent>
             </Card>
           )}
@@ -503,7 +549,7 @@ export function StudentEvents() {
                     <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                       {monthLabel}
                     </h3>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                       {monthEvents.map((ev) => {
                         const activity = activities.find((a) => a.id === ev.activityId);
                         const isSubscribed = ev.subscribedStudents.includes(studentName);
@@ -512,10 +558,7 @@ export function StudentEvents() {
                         return (
                           <div
                             key={ev.id}
-                            className={cn(
-                              "rounded-lg border bg-card p-3 flex flex-col gap-1.5",
-                              isPast && "opacity-60"
-                            )}
+                            className={cn("rounded-lg border bg-card p-3 flex flex-col gap-1.5", isPast && "opacity-60")}
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
@@ -524,20 +567,11 @@ export function StudentEvents() {
                                 )}
                                 <p className="text-sm font-medium leading-tight">{ev.title}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {formatDate(ev.date)}
-                                  {ev.time && ` at ${ev.time}`}
+                                  {formatDate(ev.date)}{ev.time && ` at ${ev.time}`}
                                 </p>
-                                {ev.location && (
-                                  <p className="text-xs text-muted-foreground">{ev.location}</p>
-                                )}
+                                {ev.location && <p className="text-xs text-muted-foreground">{ev.location}</p>}
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={() => openEdit(ev)}
-                                className="shrink-0"
-                                aria-label="Edit my details"
-                              >
+                              <Button variant="ghost" size="icon-sm" onClick={() => openEdit(ev)} className="shrink-0" aria-label="Edit my details">
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
                             </div>
@@ -554,29 +588,17 @@ export function StudentEvents() {
                             ) : (
                               <p className="text-xs text-muted-foreground italic">Transport TBD</p>
                             )}
-                            {myNote && (
-                              <p className="text-xs text-blue-700 truncate">Note: {myNote}</p>
-                            )}
+                            {myNote && <p className="text-xs text-blue-700 truncate">Note: {myNote}</p>}
                             <div className="flex items-center gap-2 mt-auto pt-1">
                               {isSubscribed ? (
                                 <>
                                   <span className="text-xs text-green-600 font-medium">✓ Going</span>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 text-xs px-2 ml-auto"
-                                    onClick={() => handleUnsubscribe(ev.id)}
-                                  >
+                                  <Button size="sm" variant="ghost" className="h-6 text-xs px-2 ml-auto" onClick={() => handleUnsubscribe(ev.id)}>
                                     Leave
                                   </Button>
                                 </>
                               ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-6 text-xs px-2 border-green-500 text-green-700 hover:bg-green-50 ml-auto"
-                                  onClick={() => handleSubscribe(ev.id)}
-                                >
+                                <Button size="sm" variant="outline" className="h-6 text-xs px-2 border-green-500 text-green-700 hover:bg-green-50 ml-auto" onClick={() => handleSubscribe(ev.id)}>
                                   Join
                                 </Button>
                               )}
@@ -620,33 +642,21 @@ export function StudentEvents() {
                   <p className="text-muted-foreground italic text-xs">Transportation not yet decided by coordinator</p>
                 )}
               </div>
-
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground">Attendance:</span>
                 {editingEvent.subscribedStudents.includes(studentName) ? (
                   <div className="flex items-center gap-2">
                     <Badge className="bg-green-100 text-green-800 border-green-200">✓ Going</Badge>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={() => { handleUnsubscribe(editingEvent.id); setEditingEvent(null); }}
-                    >
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { handleUnsubscribe(editingEvent.id); setEditingEvent(null); }}>
                       Leave event
                     </Button>
                   </div>
                 ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs border-green-500 text-green-700 hover:bg-green-50"
-                    onClick={() => { handleSubscribe(editingEvent.id); setEditingEvent(null); }}
-                  >
+                  <Button size="sm" variant="outline" className="h-7 text-xs border-green-500 text-green-700 hover:bg-green-50" onClick={() => { handleSubscribe(editingEvent.id); setEditingEvent(null); }}>
                     Join event
                   </Button>
                 )}
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="my-note" className="text-sm">My note (private)</Label>
                 <Textarea

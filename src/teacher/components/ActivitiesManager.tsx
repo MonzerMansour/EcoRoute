@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Pencil, Trash2, Bell, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Pencil, Trash2, Bell, ChevronDown, ChevronUp, Zap, UserCheck, UserX } from "lucide-react";
 import type { RankedVehiclePlan } from "@/lib/types";
 import { VehicleOptimizer } from "./VehicleOptimizer";
 import { formatCo2 } from "@/core/emissions";
@@ -24,9 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { Activity, SchoolEvent, Notification } from "@/lib/store/events";
-
-const COORDINATOR_ID = "coordinator";
-const SCHOOL = "EcoRoute High";
+import type { JoinRequest } from "@/lib/store/join-requests";
 
 async function apiFetch(url: string, opts?: RequestInit) {
   const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
@@ -81,11 +80,16 @@ function groupByMonth(events: SchoolEvent[]): Record<string, SchoolEvent[]> {
 }
 
 export function ActivitiesManager() {
+  const { data: session } = useSession();
+  const coordinatorEmail = session?.user?.email ?? "";
+
   const [activities, setActivities] = useState<Activity[]>([]);
   const [events, setEvents] = useState<SchoolEvent[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showJoinRequests, setShowJoinRequests] = useState(false);
 
   // Activity dialog
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
@@ -114,7 +118,16 @@ export function ActivitiesManager() {
     setNotifications(notifs);
   }, []);
 
+  const refreshJoinRequests = useCallback(async () => {
+    if (!coordinatorEmail) return;
+    try {
+      const data = await apiFetch(`/api/events/join-requests?coordinatorEmail=${encodeURIComponent(coordinatorEmail)}`);
+      setJoinRequests(Array.isArray(data) ? data : []);
+    } catch { /* ignore */ }
+  }, [coordinatorEmail]);
+
   useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { refreshJoinRequests(); }, [refreshJoinRequests]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -154,8 +167,8 @@ export function ActivitiesManager() {
         body: JSON.stringify({
           name: activityForm.name.trim(),
           description: activityForm.description.trim() || undefined,
-          coordinatorId: COORDINATOR_ID,
-          school: SCHOOL,
+          coordinatorId: coordinatorEmail || "coordinator",
+          school: "EcoRoute High",
         }),
       });
     }
@@ -239,10 +252,35 @@ export function ActivitiesManager() {
     refresh();
   }
 
+  async function handleJoinRequest(id: string, status: "approved" | "denied") {
+    await apiFetch(`/api/events/join-requests/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+    refreshJoinRequests();
+  }
+
+  const pendingRequests = joinRequests.filter((r) => r.status === "pending");
+  const pendingByActivity = (activityId: string) =>
+    joinRequests.filter((r) => r.activityId === activityId && r.status === "pending");
+
   const monthGroups = groupByMonth(activityEvents);
 
   return (
     <div className="space-y-4">
+      {/* Join requests banner */}
+      {pendingRequests.length > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-blue-300 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <UserCheck className="h-4 w-4 shrink-0" />
+          <span className="flex-1">
+            {pendingRequests.length} pending join request{pendingRequests.length !== 1 ? "s" : ""} from students
+          </span>
+          <Button size="sm" variant="outline" onClick={() => setShowJoinRequests(true)}>
+            Review
+          </Button>
+        </div>
+      )}
+
       {/* Notifications banner */}
       {unreadCount > 0 && (
         <div className="flex items-center gap-3 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
@@ -293,6 +331,11 @@ export function ActivitiesManager() {
                     )}
                     <p className="mt-1 text-xs text-muted-foreground">
                       {subscriberCount(a.id)} subscriber{subscriberCount(a.id) !== 1 ? "s" : ""}
+                      {pendingByActivity(a.id).length > 0 && (
+                        <span className="ml-2 font-medium text-blue-700">
+                          · {pendingByActivity(a.id).length} pending
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">
@@ -678,6 +721,78 @@ export function ActivitiesManager() {
               onSelectPlan={handleOptimizerPlan}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Join Requests Dialog */}
+      <Dialog open={showJoinRequests} onOpenChange={setShowJoinRequests}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Student Join Requests</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2 max-h-96 overflow-y-auto">
+            {joinRequests.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No join requests.</p>
+            )}
+            {joinRequests.map((r) => {
+              const activity = activities.find((a) => a.id === r.activityId);
+              return (
+                <div
+                  key={r.id}
+                  className={`rounded-lg border p-3 text-sm ${
+                    r.status === "pending"
+                      ? "bg-blue-50 border-blue-200"
+                      : r.status === "approved"
+                      ? "bg-emerald-50 border-emerald-200"
+                      : "bg-muted/30"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium">{r.studentName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        wants to join <span className="font-medium text-foreground">{activity?.name ?? r.activityId}</span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {new Date(r.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    {r.status === "pending" ? (
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700"
+                          onClick={() => handleJoinRequest(r.id, "approved")}
+                        >
+                          <UserCheck className="h-3.5 w-3.5 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs text-destructive border-destructive/40"
+                          onClick={() => handleJoinRequest(r.id, "denied")}
+                        >
+                          <UserX className="h-3.5 w-3.5 mr-1" />
+                          Deny
+                        </Button>
+                      </div>
+                    ) : (
+                      <Badge
+                        variant={r.status === "approved" ? "default" : "secondary"}
+                        className={`text-xs ${r.status === "approved" ? "bg-emerald-600" : ""}`}
+                      >
+                        {r.status}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setShowJoinRequests(false)}>Close</Button>
+          </div>
         </DialogContent>
       </Dialog>
 

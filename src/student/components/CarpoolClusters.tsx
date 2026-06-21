@@ -105,9 +105,9 @@ export function CarpoolClusters() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {clusters.map((cluster) => {
-          const memberLabels = cluster.members.map(
-            (m) => m.customNeighborhoodLabel?.trim() || m.neighborhoodId
-          );
+          const memberLabels = cluster.members
+            .map((m) => m.customNeighborhoodLabel?.trim())
+            .filter((l): l is string => !!l);
           const uniqueLabels = [...new Set(memberLabels)];
 
           const times = cluster.members
@@ -167,7 +167,7 @@ export function CarpoolClusters() {
                       : cluster.members.map((m) => m.studentName)
                     ).map((name, i, arr) => {
                       const member = cluster.members.find((m) => m.studentName === name);
-                      const label = member?.customNeighborhoodLabel?.trim() || member?.neighborhoodId || "";
+                      const label = member?.customNeighborhoodLabel?.trim() || "";
                       return (
                         <span key={name} className="flex items-center gap-1">
                           <span>

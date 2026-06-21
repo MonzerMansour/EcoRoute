@@ -55,10 +55,10 @@ export function TripInsightExplorer({ trips }: { trips: Trip[] }) {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Sparkles className="h-4 w-4" />
           </div>
-          <CardTitle>AI trip insight</CardTitle>
+          <CardTitle>Overview of Optimizers and AI Insights</CardTitle>
         </div>
         <CardDescription>
-          Pick a trip and let EcoRoute&apos;s AI explain the greenest option.
+          Select any trip to see a full optimizer breakdown and AI-powered explanation of the greenest option.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

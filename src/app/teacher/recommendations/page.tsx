@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/card";
 import type { Trip } from "@/lib/types";
 
-export const metadata = { title: "Recommendations" };
+export const metadata = { title: "Optimization Overview" };
 
 function pct(a: number, b: number) {
   if (b === 0) return 0;
@@ -40,7 +40,7 @@ export default async function TeacherRecommendationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Smart Recommendations</h1>
+        <h1 className="text-3xl font-bold">Optimization Overview</h1>
         <p className="mt-2 text-muted-foreground">
           Every trip ranked by footprint — with specific actions to cut your season CO₂.
         </p>

@@ -146,7 +146,7 @@ export function CarpoolClusters() {
         </Card>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      {source !== "fallback" && <div className="grid gap-4 sm:grid-cols-2">
         {clusters.map((cluster) => {
           const memberLabels = cluster.members
             .map((m) => m.customNeighborhoodLabel?.trim())
@@ -233,7 +233,7 @@ export function CarpoolClusters() {
             </Card>
           );
         })}
-      </div>
+      </div>}
     </div>
   );
 }

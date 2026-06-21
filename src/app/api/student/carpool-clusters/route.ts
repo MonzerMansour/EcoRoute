@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import type { CommuteEntry } from "@/student/lib/carpools";
 import { roundKg } from "@/core/emissions";
 import { COMMUTE_CO2_PER_MILE } from "@/core/emissions";
@@ -36,14 +36,14 @@ export async function POST(request: Request) {
     departureTime: e.departureTime,
   }));
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
     return NextResponse.json({ clusters: fallbackClusters(entries), source: "fallback" });
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const openai = new OpenAI({ apiKey });
 
     const prompt = `You are helping group students into carpool clusters for school commutes. All students attend the same school and live in the same general metro area or state.
 
@@ -68,13 +68,17 @@ Return ONLY valid JSON as an array:
   }
 ]`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json", temperature: 0.3 },
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
     });
 
-    const raw = JSON.parse(response.text ?? "[]") as GeminiClusterRaw[];
+    const content = response.choices[0]?.message?.content ?? "[]";
+    // response_format json_object may wrap in an object; handle both array and wrapped
+    const parsed = JSON.parse(content);
+    const raw = (Array.isArray(parsed) ? parsed : parsed.clusters ?? Object.values(parsed)[0] ?? []) as GeminiClusterRaw[];
 
     const clusters: GeminiCluster[] = raw.map((c, i) => {
       const members = entries.filter((e) => c.members.includes(e.studentName));

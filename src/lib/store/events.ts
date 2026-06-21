@@ -25,6 +25,8 @@ export interface SchoolEvent {
   /** CO2 kg for the chosen vehicle, round trip */
   chosenVehicleCo2Kg?: number;
   subscribedStudents: string[];
+  /** Whether this event should appear in the coordinator's Trips section */
+  includeInTrips?: boolean;
   createdAt: string;
 }
 

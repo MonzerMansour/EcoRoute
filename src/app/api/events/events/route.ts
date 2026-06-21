@@ -18,6 +18,7 @@ export async function POST(req: Request) {
     notes: body.notes,
     chosenVehicle: body.chosenVehicle,
     chosenVehicleCo2Kg: body.chosenVehicleCo2Kg,
+    includeInTrips: body.includeInTrips ?? false,
   });
   return NextResponse.json(event, { status: 201 });
 }

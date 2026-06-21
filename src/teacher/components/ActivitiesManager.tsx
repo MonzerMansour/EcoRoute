@@ -49,6 +49,7 @@ interface EventFormState {
   notes: string;
   chosenVehicle: string;
   chosenVehicleCo2Kg: string;
+  includeInTrips: boolean;
 }
 
 const emptyActivityForm = (): ActivityFormState => ({ name: "", description: "", pin: "" });
@@ -62,6 +63,7 @@ const emptyEventForm = (): EventFormState => ({
   notes: "",
   chosenVehicle: "",
   chosenVehicleCo2Kg: "",
+  includeInTrips: false,
 });
 
 function formatDate(dateStr: string): string {
@@ -207,6 +209,7 @@ export function ActivitiesManager() {
       notes: ev.notes ?? "",
       chosenVehicle: ev.chosenVehicle ?? "",
       chosenVehicleCo2Kg: ev.chosenVehicleCo2Kg !== undefined ? String(ev.chosenVehicleCo2Kg) : "",
+      includeInTrips: ev.includeInTrips ?? false,
     });
     setEventDialogOpen(true);
   }
@@ -224,6 +227,7 @@ export function ActivitiesManager() {
       notes: eventForm.notes.trim() || undefined,
       chosenVehicle: eventForm.chosenVehicle.trim() || undefined,
       chosenVehicleCo2Kg: eventForm.chosenVehicleCo2Kg ? Number(eventForm.chosenVehicleCo2Kg) : undefined,
+      includeInTrips: eventForm.includeInTrips,
     };
     if (editingEvent) {
       await apiFetch(`/api/events/events/${editingEvent.id}`, { method: "PATCH", body: JSON.stringify(payload) });
@@ -695,6 +699,18 @@ export function ActivitiesManager() {
                   placeholder="e.g. 28.8"
                 />
               </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                id="ev-include-trips"
+                type="checkbox"
+                checked={eventForm.includeInTrips}
+                onChange={(e) => setEventForm((f) => ({ ...f, includeInTrips: e.target.checked }))}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="ev-include-trips" className="cursor-pointer font-normal">
+                Show in Trips section (for CO₂ recommendations)
+              </Label>
             </div>
             <div className="space-y-2">
               <Label htmlFor="ev-notes">Notes</Label>

@@ -75,6 +75,7 @@ async function rowToEvent(r: Record<string, unknown>): Promise<SchoolEvent> {
     notes: (r.notes as string) ?? undefined,
     chosenVehicle: (r.chosen_vehicle as string) ?? undefined,
     chosenVehicleCo2Kg: r.chosen_vehicle_co2_kg != null ? Number(r.chosen_vehicle_co2_kg) : undefined,
+    includeInTrips: r.include_in_trips === true,
     subscribedStudents: (subs ?? []).map((s: Record<string, unknown>) => s.student_name as string),
     createdAt: r.created_at as string,
   };
@@ -98,6 +99,7 @@ export async function dbCreateEvent(e: Omit<SchoolEvent, "id" | "createdAt" | "s
     notes: e.notes ?? null,
     chosen_vehicle: e.chosenVehicle ?? null,
     chosen_vehicle_co2_kg: e.chosenVehicleCo2Kg ?? null,
+    include_in_trips: e.includeInTrips ?? false,
   }).select("*").single();
   if (error) throw error;
   return rowToEvent(data);
@@ -114,6 +116,7 @@ export async function dbUpdateEvent(id: string, patch: Partial<SchoolEvent>): Pr
   if (patch.notes !== undefined) row.notes = patch.notes ?? null;
   if (patch.chosenVehicle !== undefined) row.chosen_vehicle = patch.chosenVehicle ?? null;
   if (patch.chosenVehicleCo2Kg !== undefined) row.chosen_vehicle_co2_kg = patch.chosenVehicleCo2Kg ?? null;
+  if (patch.includeInTrips !== undefined) row.include_in_trips = patch.includeInTrips;
   const { data, error } = await db().from("events").update(row).eq("id", id).select("*").maybeSingle();
   if (error) throw error;
   return data ? rowToEvent(data) : null;

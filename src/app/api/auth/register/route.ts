@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createUser } from "@/lib/data/users";
+import { createActivity } from "@/lib/data/events-store";
 import type { UserRole } from "@/lib/auth";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -36,14 +37,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ errors }, { status: 422 });
   }
 
-  // parentEmail, activities, and school are accepted for future use
   void parentEmail;
-  void activities;
-  console.log(`[register] school: ${school}`);
 
   const result = await createUser({ email, password, name, role });
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 409 });
+  }
+
+  // Auto-create activities for coordinators who listed what they coach
+  if (role === "teacher" && activities.length > 0) {
+    await Promise.all(
+      activities.map((actName) =>
+        createActivity({ name: actName, coordinatorId: email, school })
+      )
+    );
   }
 
   return NextResponse.json({ ok: true, role }, { status: 201 });

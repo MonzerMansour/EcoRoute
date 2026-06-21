@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronDown, ChevronUp, CheckCircle2, Circle } from "lucide-react";
+import { ChevronDown, ChevronUp, CheckCircle2, Circle, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,10 @@ export function StudentEvents() {
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
+  // Coordinator lookup
+  const [coordEmail, setCoordEmail] = useState("");
+  const [coordLookupState, setCoordLookupState] = useState<"idle" | "loading" | "done" | "none">("idle");
+  const [coordResults, setCoordResults] = useState<Activity[]>([]);
 
   const refresh = useCallback(async () => {
     const [evs, acts] = await Promise.all([
@@ -89,6 +93,33 @@ export function StudentEvents() {
       body: JSON.stringify({ studentName, action: "unsubscribe" }),
     });
     refresh();
+  }
+
+  async function lookupCoordinator() {
+    if (!coordEmail.trim()) return;
+    setCoordLookupState("loading");
+    setCoordResults([]);
+    try {
+      const [actData, evData] = await Promise.all([
+        apiFetch(`/api/events/activities?email=${encodeURIComponent(coordEmail.trim())}`),
+        apiFetch("/api/events/events"),
+      ]);
+      if (Array.isArray(actData) && actData.length > 0) {
+        setCoordResults(actData);
+        setCoordLookupState("done");
+        setActivities((prev) => {
+          const existingIds = new Set(prev.map((a) => a.id));
+          return [...prev, ...actData.filter((a: Activity) => !existingIds.has(a.id))];
+        });
+        if (Array.isArray(evData)) {
+          setEvents(evData);
+        }
+      } else {
+        setCoordLookupState("none");
+      }
+    } catch {
+      setCoordLookupState("none");
+    }
   }
 
   // Name prompt
@@ -201,13 +232,94 @@ export function StudentEvents() {
     );
   }
 
+  function renderCoordLookup() {
+    return (
+      <div className="space-y-2 pt-2">
+        <p className="text-xs font-medium text-muted-foreground">Find a coordinator by email</p>
+        <div className="flex gap-2">
+          <Input
+            placeholder="coach@school.edu"
+            type="email"
+            value={coordEmail}
+            onChange={(e) => { setCoordEmail(e.target.value); setCoordLookupState("idle"); }}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), lookupCoordinator())}
+            className="text-xs h-8"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 px-2"
+            onClick={lookupCoordinator}
+            disabled={coordLookupState === "loading"}
+          >
+            {coordLookupState === "loading" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Search className="h-3.5 w-3.5" />
+            )}
+          </Button>
+        </div>
+        {coordLookupState === "none" && (
+          <p className="text-xs text-muted-foreground">No activities found for that coordinator.</p>
+        )}
+        {coordLookupState === "done" && coordResults.length > 0 && (
+          <p className="text-xs text-green-700">{coordResults.length} activit{coordResults.length === 1 ? "y" : "ies"} added — check the list above.</p>
+        )}
+      </div>
+    );
+  }
+
   if (activities.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center text-sm text-muted-foreground">
-          No activities yet. Check back when your coordinator adds activities and events.
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Follow a Coordinator</CardTitle>
+            <CardDescription className="text-xs">
+              Enter your coach or teacher&apos;s email to see their activities and events.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                placeholder="coach@school.edu"
+                type="email"
+                value={coordEmail}
+                onChange={(e) => { setCoordEmail(e.target.value); setCoordLookupState("idle"); }}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), lookupCoordinator())}
+              />
+              <Button
+                variant="outline"
+                onClick={lookupCoordinator}
+                disabled={coordLookupState === "loading"}
+              >
+                {coordLookupState === "loading" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            {coordLookupState === "none" && (
+              <p className="text-sm text-muted-foreground">No activities found for that coordinator.</p>
+            )}
+            {coordLookupState === "done" && coordResults.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Activities found — follow them to see events:</p>
+                {coordResults.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                    <span>{a.name}</span>
+                    <Button size="sm" variant={myActivityIds.includes(a.id) ? "secondary" : "outline"} className="h-7 text-xs" onClick={() => toggleActivity(a.id)}>
+                      {myActivityIds.includes(a.id) ? "Following ✓" : "Follow"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -276,6 +388,7 @@ export function StudentEvents() {
                 </div>
               );
             })}
+            {renderCoordLookup()}
           </CardContent>
         </Card>
 

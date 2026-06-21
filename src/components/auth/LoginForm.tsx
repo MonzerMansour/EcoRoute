@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { Leaf, Mail, Lock, Loader2 } from "lucide-react";
+import { Leaf, Mail, Lock, Loader2, Search } from "lucide-react";
 import type { UserRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -24,17 +24,23 @@ interface LoginFormProps {
   subtitle: string;
 }
 
-const ACTIVITY_OPTIONS = [
+const COORDINATOR_ACTIVITY_OPTIONS = [
   "Varsity Basketball",
+  "JV Basketball",
+  "Varsity Soccer",
   "JV Soccer",
+  "Varsity Volleyball",
   "Track & Field",
+  "Cross Country",
+  "Swimming",
   "Drama Club",
   "Chess Club",
   "Student Council",
   "Science Club",
-  "Cross Country",
-  "Swimming",
   "Debate Team",
+  "Marching Band",
+  "Baseball",
+  "Softball",
 ];
 
 export function LoginForm({ role, title, subtitle }: LoginFormProps) {
@@ -44,8 +50,15 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [parentEmail, setParentEmail] = useState("");
+  // Coordinator: activities they coach
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [activitySearch, setActivitySearch] = useState("");
+  const [customActivity, setCustomActivity] = useState("");
+  // Student: coordinator email lookup
+  const [coordEmail, setCoordEmail] = useState("");
+  const [coordActivities, setCoordActivities] = useState<{ id: string; name: string; coordinatorId: string }[]>([]);
+  const [coordLookupState, setCoordLookupState] = useState<"idle" | "loading" | "done" | "none">("idle");
+  const [selectedCoordActivityIds, setSelectedCoordActivityIds] = useState<string[]>([]);
   const [loading, setLoading] = useState<"email" | null>(null);
   const [error, setError] = useState("");
 
@@ -56,15 +69,46 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
 
   function toggleActivity(activity: string) {
     setSelectedActivities((prev) =>
-      prev.includes(activity)
-        ? prev.filter((a) => a !== activity)
-        : [...prev, activity],
+      prev.includes(activity) ? prev.filter((a) => a !== activity) : [...prev, activity],
     );
   }
 
-  const filteredActivities = ACTIVITY_OPTIONS.filter((a) =>
+  function addCustomActivity() {
+    const trimmed = customActivity.trim();
+    if (trimmed && !selectedActivities.includes(trimmed)) {
+      setSelectedActivities((prev) => [...prev, trimmed]);
+    }
+    setCustomActivity("");
+  }
+
+  const filteredActivities = COORDINATOR_ACTIVITY_OPTIONS.filter((a) =>
     a.toLowerCase().includes(activitySearch.toLowerCase()),
   );
+
+  function toggleCoordActivity(id: string) {
+    setSelectedCoordActivityIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
+
+  async function lookupCoordinator() {
+    if (!coordEmail.trim()) return;
+    setCoordLookupState("loading");
+    setCoordActivities([]);
+    setSelectedCoordActivityIds([]);
+    try {
+      const res = await fetch(`/api/events/activities?email=${encodeURIComponent(coordEmail.trim())}`);
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        setCoordActivities(data);
+        setCoordLookupState("done");
+      } else {
+        setCoordLookupState("none");
+      }
+    } catch {
+      setCoordLookupState("none");
+    }
+  }
 
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -98,7 +142,7 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
             school,
             role,
             parentEmail: parentEmail || undefined,
-            activities: selectedActivities,
+            activities: selectedActivities, // coordinator: activity names they coach
           }),
         });
         if (!res.ok) {
@@ -140,8 +184,9 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
           return;
         }
 
-        if (mode === "signup" && selectedActivities.length > 0) {
-          localStorage.setItem("ecoroute_my_activities", JSON.stringify(selectedActivities));
+        // Student: save followed coordinator activity IDs to localStorage
+        if (mode === "signup" && role === "student" && selectedCoordActivityIds.length > 0) {
+          localStorage.setItem("ecoroute_my_activity_ids", JSON.stringify(selectedCoordActivityIds));
         }
         window.location.href = result?.url ?? callbackUrl;
       }
@@ -249,10 +294,11 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
                 </div>
               )}
 
-              {mode === "signup" && (
+              {/* COORDINATOR: pick activities they coach */}
+              {mode === "signup" && role === "teacher" && (
                 <div className="space-y-2">
                   <Label>
-                    Teams / Clubs / Events{" "}
+                    Activities you coach / coordinate{" "}
                     <span className="text-muted-foreground">(optional)</span>
                   </Label>
                   <Input
@@ -276,6 +322,18 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
                       </label>
                     ))}
                   </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add a custom activity…"
+                      value={customActivity}
+                      onChange={(e) => setCustomActivity(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomActivity())}
+                      className="text-sm"
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={addCustomActivity}>
+                      Add
+                    </Button>
+                  </div>
                   {selectedActivities.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {selectedActivities.map((a) => (
@@ -288,6 +346,76 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
                           {a} ×
                         </Badge>
                       ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* STUDENT: follow a coordinator by email */}
+              {mode === "signup" && role === "student" && (
+                <div className="space-y-2">
+                  <Label>
+                    Follow a coordinator{" "}
+                    <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Enter your coach or teacher&apos;s email to see their activities and events.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="coach@school.edu"
+                      type="email"
+                      value={coordEmail}
+                      onChange={(e) => { setCoordEmail(e.target.value); setCoordLookupState("idle"); }}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), lookupCoordinator())}
+                      className="text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={lookupCoordinator}
+                      disabled={coordLookupState === "loading"}
+                    >
+                      {coordLookupState === "loading" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  {coordLookupState === "none" && (
+                    <p className="text-xs text-muted-foreground">No activities found for that email.</p>
+                  )}
+                  {coordLookupState === "done" && coordActivities.length > 0 && (
+                    <div className="rounded-md border p-2 space-y-1">
+                      {coordActivities.map((act) => (
+                        <label key={act.id} className="flex items-center gap-2 cursor-pointer text-sm py-0.5">
+                          <input
+                            type="checkbox"
+                            checked={selectedCoordActivityIds.includes(act.id)}
+                            onChange={() => toggleCoordActivity(act.id)}
+                            className="h-3.5 w-3.5"
+                          />
+                          {act.name}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {selectedCoordActivityIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {coordActivities
+                        .filter((a) => selectedCoordActivityIds.includes(a.id))
+                        .map((a) => (
+                          <Badge
+                            key={a.id}
+                            variant="secondary"
+                            className="cursor-pointer text-xs"
+                            onClick={() => toggleCoordActivity(a.id)}
+                          >
+                            {a.name} ×
+                          </Badge>
+                        ))}
                     </div>
                   )}
                 </div>

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { listActivities, createActivity } from "@/lib/data/events-store";
 
-export async function GET() {
-  return NextResponse.json(await listActivities());
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const email = searchParams.get("email")?.toLowerCase().trim() ?? "";
+  const all = await listActivities();
+  const result = email ? all.filter((a) => a.coordinatorId?.toLowerCase() === email) : all;
+  return NextResponse.json(result);
 }
 
 export async function POST(req: Request) {

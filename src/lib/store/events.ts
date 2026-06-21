@@ -7,6 +7,7 @@ export interface Activity {
   description?: string;
   coordinatorId: string; // email of coordinator who created it
   school: string;
+  pin?: string;         // coordinator-set PIN; stripped before sending to students
 }
 
 export interface SchoolEvent {

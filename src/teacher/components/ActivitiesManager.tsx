@@ -36,6 +36,7 @@ async function apiFetch(url: string, opts?: RequestInit) {
 interface ActivityFormState {
   name: string;
   description: string;
+  pin: string;
 }
 
 interface EventFormState {
@@ -50,7 +51,7 @@ interface EventFormState {
   chosenVehicleCo2Kg: string;
 }
 
-const emptyActivityForm = (): ActivityFormState => ({ name: "", description: "" });
+const emptyActivityForm = (): ActivityFormState => ({ name: "", description: "", pin: "" });
 const emptyEventForm = (): EventFormState => ({
   title: "",
   date: "",
@@ -109,7 +110,7 @@ export function ActivitiesManager() {
 
   const refresh = useCallback(async () => {
     const [acts, evs, notifs] = await Promise.all([
-      apiFetch("/api/events/activities"),
+      apiFetch("/api/events/activities?includePin=true"),
       apiFetch("/api/events/events"),
       apiFetch("/api/events/notifications"),
     ]);
@@ -150,7 +151,7 @@ export function ActivitiesManager() {
 
   function openEditActivity(a: Activity) {
     setEditingActivity(a);
-    setActivityForm({ name: a.name, description: a.description ?? "" });
+    setActivityForm({ name: a.name, description: a.description ?? "", pin: a.pin ?? "" });
     setActivityDialogOpen(true);
   }
 
@@ -159,7 +160,11 @@ export function ActivitiesManager() {
     if (editingActivity) {
       await apiFetch(`/api/events/activities/${editingActivity.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ name: activityForm.name.trim(), description: activityForm.description.trim() }),
+        body: JSON.stringify({
+          name: activityForm.name.trim(),
+          description: activityForm.description.trim() || undefined,
+          pin: activityForm.pin.trim() || undefined,
+        }),
       });
     } else {
       await apiFetch("/api/events/activities", {
@@ -169,6 +174,7 @@ export function ActivitiesManager() {
           description: activityForm.description.trim() || undefined,
           coordinatorId: coordinatorEmail || "coordinator",
           school: "EcoRoute High",
+          pin: activityForm.pin.trim() || undefined,
         }),
       });
     }
@@ -331,12 +337,12 @@ export function ActivitiesManager() {
                     )}
                     <p className="mt-1 text-xs text-muted-foreground">
                       {subscriberCount(a.id)} subscriber{subscriberCount(a.id) !== 1 ? "s" : ""}
-                      {pendingByActivity(a.id).length > 0 && (
-                        <span className="ml-2 font-medium text-blue-700">
-                          · {pendingByActivity(a.id).length} pending
-                        </span>
-                      )}
                     </p>
+                    {a.pin ? (
+                      <p className="mt-0.5 text-xs font-mono text-primary">PIN: {a.pin}</p>
+                    ) : (
+                      <p className="mt-0.5 text-xs text-muted-foreground italic">No PIN (open)</p>
+                    )}
                   </div>
                   <div className="flex shrink-0 gap-1">
                     <Button
@@ -554,8 +560,24 @@ export function ActivitiesManager() {
                 value={activityForm.description}
                 onChange={(e) => setActivityForm((f) => ({ ...f, description: e.target.value }))}
                 placeholder="Brief description…"
-                rows={3}
+                rows={2}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="act-pin">
+                Student PIN{" "}
+                <span className="text-muted-foreground font-normal">(students enter this to join events)</span>
+              </Label>
+              <Input
+                id="act-pin"
+                value={activityForm.pin}
+                onChange={(e) => setActivityForm((f) => ({ ...f, pin: e.target.value }))}
+                placeholder="e.g. 4821"
+                maxLength={20}
+              />
+              <p className="text-xs text-muted-foreground">
+                Share this PIN with your students. Leave blank to allow anyone to join.
+              </p>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setActivityDialogOpen(false)}>

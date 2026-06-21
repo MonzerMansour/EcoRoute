@@ -42,8 +42,13 @@ function memUnsubscribe(eventId: string, studentName: string): SchoolEvent | nul
 
 // ── Public API (auto-routes to Supabase or memory) ─────────────────────────
 
-export async function listActivities(): Promise<Activity[]> {
-  return isSupabaseConfigured() ? supabase.dbListActivities() : mem().activities;
+export async function listActivities(includePin = false): Promise<Activity[]> {
+  return isSupabaseConfigured() ? supabase.dbListActivities(includePin) : mem().activities;
+}
+
+export async function getActivityWithPin(id: string): Promise<Activity | null> {
+  if (isSupabaseConfigured()) return supabase.dbGetActivityWithPin(id);
+  return mem().activities.find((a) => a.id === id) ?? null;
 }
 
 export async function createActivity(a: Omit<Activity, "id">): Promise<Activity> {

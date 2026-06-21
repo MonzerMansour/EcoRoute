@@ -3,13 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   CheckCircle2,
-  Clock,
+  Circle,
   Search,
   Loader2,
   List,
   CalendarDays,
   Pencil,
-  XCircle,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +32,6 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import type { SchoolEvent, Activity } from "@/lib/store/events";
-import type { JoinRequest } from "@/lib/store/join-requests";
 import { formatCo2 } from "@/core/emissions";
 import { cn } from "@/lib/utils";
 
@@ -77,10 +76,7 @@ export function StudentEvents() {
   const [nameInput, setNameInput] = useState("");
   const [events, setEvents] = useState<SchoolEvent[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  // myActivityIds = approved activities (stored locally as cache of approved requests)
   const [myActivityIds, setMyActivityIds] = useState<string[]>([]);
-  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
-  const [flashIds, setFlashIds] = useState<Set<string>>(new Set());
   const [view, setView] = useState<"list" | "calendar">("list");
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
 
@@ -88,9 +84,14 @@ export function StudentEvents() {
   const [coordEmail, setCoordEmail] = useState("");
   const [coordLookupState, setCoordLookupState] = useState<"idle" | "loading" | "done" | "none">("idle");
   const [coordResults, setCoordResults] = useState<Activity[]>([]);
-  const [requestingId, setRequestingId] = useState<string | null>(null);
 
-  // Edit event dialog
+  // PIN dialog for joining an event
+  const [pinEvent, setPinEvent] = useState<SchoolEvent | null>(null);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [pinLoading, setPinLoading] = useState(false);
+
+  // Edit event dialog (private notes + attendance)
   const [editingEvent, setEditingEvent] = useState<SchoolEvent | null>(null);
   const [editNote, setEditNote] = useState("");
   const [studentNotes, setStudentNotes] = useState<StudentNotes>({});
@@ -104,27 +105,6 @@ export function StudentEvents() {
     setActivities(acts);
   }, []);
 
-  const refreshJoinRequests = useCallback(async (name: string) => {
-    if (!name) return;
-    try {
-      const data = await apiFetch(`/api/events/join-requests?studentName=${encodeURIComponent(name)}`);
-      if (Array.isArray(data)) {
-        setJoinRequests(data);
-        // Sync approved activities into myActivityIds
-        const approvedIds = (data as JoinRequest[])
-          .filter((r) => r.status === "approved")
-          .map((r) => r.activityId);
-        if (approvedIds.length > 0) {
-          setMyActivityIds((prev) => {
-            const merged = Array.from(new Set([...prev, ...approvedIds]));
-            localStorage.setItem(MY_ACTIVITY_IDS_KEY, JSON.stringify(merged));
-            return merged;
-          });
-        }
-      }
-    } catch { /* ignore */ }
-  }, []);
-
   useEffect(() => {
     const saved = localStorage.getItem(STUDENT_NAME_KEY) ?? "";
     setStudentName(saved);
@@ -135,57 +115,20 @@ export function StudentEvents() {
       const notes = localStorage.getItem(STUDENT_NOTES_KEY);
       if (notes) setStudentNotes(JSON.parse(notes));
     } catch { /* ignore */ }
-    if (saved) refreshJoinRequests(saved);
-  }, [refresh, refreshJoinRequests]);
+  }, [refresh]);
 
   function saveName() {
     if (!nameInput.trim()) return;
     localStorage.setItem(STUDENT_NAME_KEY, nameInput.trim());
     setStudentName(nameInput.trim());
-    refreshJoinRequests(nameInput.trim());
   }
 
-  function removeActivity(id: string) {
+  function toggleActivity(id: string) {
     setMyActivityIds((prev) => {
-      const next = prev.filter((x) => x !== id);
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       localStorage.setItem(MY_ACTIVITY_IDS_KEY, JSON.stringify(next));
       return next;
     });
-  }
-
-  async function handleRequestJoin(activityId: string) {
-    setRequestingId(activityId);
-    try {
-      await apiFetch("/api/events/join-requests", {
-        method: "POST",
-        body: JSON.stringify({ activityId, studentName }),
-      });
-      await refreshJoinRequests(studentName);
-      // Merge activity into local list so it shows up immediately
-      setActivities((prev) => prev); // already there from lookup
-    } catch { /* ignore */ } finally {
-      setRequestingId(null);
-    }
-  }
-
-  async function handleSubscribe(eventId: string) {
-    await apiFetch(`/api/events/events/${eventId}/subscribe`, {
-      method: "POST",
-      body: JSON.stringify({ studentName, action: "subscribe" }),
-    });
-    refresh();
-    setFlashIds((prev) => new Set(prev).add(eventId));
-    setTimeout(() => {
-      setFlashIds((prev) => { const n = new Set(prev); n.delete(eventId); return n; });
-    }, 2000);
-  }
-
-  async function handleUnsubscribe(eventId: string) {
-    await apiFetch(`/api/events/events/${eventId}/subscribe`, {
-      method: "POST",
-      body: JSON.stringify({ studentName, action: "unsubscribe" }),
-    });
-    refresh();
   }
 
   async function lookupCoordinator() {
@@ -197,12 +140,10 @@ export function StudentEvents() {
       if (Array.isArray(actData) && actData.length > 0) {
         setCoordResults(actData);
         setCoordLookupState("done");
-        // Merge into activities state so they're available
         setActivities((prev) => {
           const existingIds = new Set(prev.map((a) => a.id));
           return [...prev, ...actData.filter((a: Activity) => !existingIds.has(a.id))];
         });
-        // Also fetch latest events
         const evData = await apiFetch("/api/events/events");
         if (Array.isArray(evData)) setEvents(evData);
       } else {
@@ -211,6 +152,45 @@ export function StudentEvents() {
     } catch {
       setCoordLookupState("none");
     }
+  }
+
+  function openPinDialog(ev: SchoolEvent) {
+    setPinEvent(ev);
+    setPinInput("");
+    setPinError("");
+  }
+
+  async function submitPin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pinEvent) return;
+    setPinLoading(true);
+    setPinError("");
+    try {
+      const res = await fetch(`/api/events/events/${pinEvent.id}/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentName, action: "subscribe", pin: pinInput }),
+      });
+      if (res.ok) {
+        setPinEvent(null);
+        refresh();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setPinError(data.error ?? "Incorrect PIN. Try again.");
+      }
+    } catch {
+      setPinError("Network error. Try again.");
+    } finally {
+      setPinLoading(false);
+    }
+  }
+
+  async function handleUnsubscribe(eventId: string) {
+    await apiFetch(`/api/events/events/${eventId}/subscribe`, {
+      method: "POST",
+      body: JSON.stringify({ studentName, action: "unsubscribe" }),
+    });
+    refresh();
   }
 
   function openEdit(ev: SchoolEvent) {
@@ -224,12 +204,6 @@ export function StudentEvents() {
     setStudentNotes(updated);
     localStorage.setItem(STUDENT_NOTES_KEY, JSON.stringify(updated));
     setEditingEvent(null);
-  }
-
-  // Helper: request status for an activity
-  function requestStatus(activityId: string): JoinRequest["status"] | "none" {
-    const req = joinRequests.find((r) => r.activityId === activityId);
-    return req ? req.status : "none";
   }
 
   // Name prompt
@@ -255,7 +229,6 @@ export function StudentEvents() {
   }
 
   const today = todayStr();
-  // Only show activities this student is approved for
   const myActivities = activities.filter((a) => myActivityIds.includes(a.id));
   const myEvents = events.filter((ev) => myActivityIds.includes(ev.activityId));
   const activeActivity = myActivities.find((a) => a.id === selectedActivityId) ?? null;
@@ -287,7 +260,6 @@ export function StudentEvents() {
   function renderEventCard(ev: SchoolEvent) {
     const activity = activities.find((a) => a.id === ev.activityId);
     const isSubscribed = ev.subscribedStudents.includes(studentName);
-    const isFlashing = flashIds.has(ev.id);
     const myNote = studentNotes[ev.id];
     return (
       <Card key={ev.id}>
@@ -321,12 +293,17 @@ export function StudentEvents() {
               {isSubscribed ? (
                 <Button size="sm" variant="ghost" className="text-xs" onClick={() => handleUnsubscribe(ev.id)}>Leave</Button>
               ) : (
-                <Button size="sm" variant="outline" className="border-green-500 text-green-700 hover:bg-green-50 text-xs" onClick={() => handleSubscribe(ev.id)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-green-500 text-green-700 hover:bg-green-50 text-xs gap-1"
+                  onClick={() => openPinDialog(ev)}
+                >
+                  <Lock className="h-3 w-3" />
                   Join
                 </Button>
               )}
               {isSubscribed && <span className="text-xs text-green-600">✓ Going</span>}
-              {isFlashing && <span className="text-xs font-medium text-green-600">Joined!</span>}
             </div>
           </div>
         </CardContent>
@@ -334,36 +311,46 @@ export function StudentEvents() {
     );
   }
 
-  function renderJoinButton(a: Activity) {
-    const status = requestStatus(a.id);
-    const isApproved = myActivityIds.includes(a.id);
-    if (isApproved) return null; // already in their list, shown there
-    if (status === "pending") {
-      return (
-        <div className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-          <Clock className="h-3 w-3" />
-          Pending approval
-        </div>
-      );
-    }
-    if (status === "denied") {
-      return (
-        <div className="flex items-center gap-1 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded px-2 py-1">
-          <XCircle className="h-3 w-3" />
-          Request denied
-        </div>
-      );
-    }
+  if (activities.length === 0) {
     return (
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-7 text-xs"
-        disabled={requestingId === a.id}
-        onClick={() => handleRequestJoin(a.id)}
-      >
-        {requestingId === a.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Request to Join"}
-      </Button>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Find your coordinator</CardTitle>
+          <CardDescription className="text-xs">
+            Enter your coach or teacher&apos;s email to see their activities and events.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              placeholder="coach@school.edu"
+              type="email"
+              value={coordEmail}
+              onChange={(e) => { setCoordEmail(e.target.value); setCoordLookupState("idle"); }}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), lookupCoordinator())}
+            />
+            <Button variant="outline" onClick={lookupCoordinator} disabled={coordLookupState === "loading"}>
+              {coordLookupState === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </Button>
+          </div>
+          {coordLookupState === "none" && (
+            <p className="text-sm text-muted-foreground">No activities found for that email.</p>
+          )}
+          {coordLookupState === "done" && coordResults.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Activities found — check the ones you&apos;re in:</p>
+              {coordResults.map((a) => (
+                <div key={a.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                  <span>{a.name}</span>
+                  <Button size="sm" variant={myActivityIds.includes(a.id) ? "secondary" : "outline"} className="h-7 text-xs" onClick={() => toggleActivity(a.id)}>
+                    {myActivityIds.includes(a.id) ? "Following ✓" : "Follow"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     );
   }
 
@@ -408,50 +395,47 @@ export function StudentEvents() {
         {/* Left panel — activities */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">My Activities</CardTitle>
+            <CardTitle className="text-base">School Activities</CardTitle>
             <CardDescription className="text-xs">
-              Activities your coordinator approved you for.
+              Check the ones you&apos;re part of to see their events.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-1 p-3 pt-0">
-            {myActivities.length === 0 ? (
-              <p className="py-3 text-xs text-muted-foreground">
-                No approved activities yet. Use the lookup below to find your coordinator and request to join.
-              </p>
-            ) : (
-              myActivities.map((a) => {
-                const evCount = events.filter((e) => e.activityId === a.id).length;
-                return (
-                  <div
-                    key={a.id}
-                    className={cn(
-                      "cursor-pointer rounded-lg border p-3 transition-colors",
-                      selectedActivityId === a.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                    )}
-                    onClick={() => setSelectedActivityId((prev) => prev === a.id ? null : a.id)}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{a.name}</p>
-                        {a.description && (
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">{a.description}</p>
-                        )}
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {evCount} event{evCount !== 1 ? "s" : ""}
-                        </p>
-                      </div>
-                      <button
-                        className="shrink-0 mt-0.5"
-                        onClick={(e) => { e.stopPropagation(); removeActivity(a.id); }}
-                        title="Remove from my activities"
-                      >
-                        <CheckCircle2 className="h-5 w-5 text-primary" />
-                      </button>
+            {activities.map((a) => {
+              const isFollowing = myActivityIds.includes(a.id);
+              const evCount = events.filter((e) => e.activityId === a.id).length;
+              return (
+                <div
+                  key={a.id}
+                  className={cn(
+                    "cursor-pointer rounded-lg border p-3 transition-colors",
+                    selectedActivityId === a.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                  )}
+                  onClick={() => setSelectedActivityId((prev) => prev === a.id ? null : a.id)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{a.name}</p>
+                      {a.description && (
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{a.description}</p>
+                      )}
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {evCount} event{evCount !== 1 ? "s" : ""}
+                      </p>
                     </div>
+                    <button
+                      className="shrink-0 mt-0.5"
+                      onClick={(e) => { e.stopPropagation(); toggleActivity(a.id); }}
+                      title={isFollowing ? "Unfollow" : "Follow"}
+                    >
+                      {isFollowing
+                        ? <CheckCircle2 className="h-5 w-5 text-primary" />
+                        : <Circle className="h-5 w-5 text-muted-foreground/40" />}
+                    </button>
                   </div>
-                );
-              })
-            )}
+                </div>
+              );
+            })}
 
             {/* Coordinator lookup */}
             <div className="space-y-2 pt-3 border-t mt-2">
@@ -465,34 +449,15 @@ export function StudentEvents() {
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), lookupCoordinator())}
                   className="text-xs h-8"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-2"
-                  onClick={lookupCoordinator}
-                  disabled={coordLookupState === "loading"}
-                >
-                  {coordLookupState === "loading" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Search className="h-3.5 w-3.5" />
-                  )}
+                <Button type="button" variant="outline" size="sm" className="h-8 px-2" onClick={lookupCoordinator} disabled={coordLookupState === "loading"}>
+                  {coordLookupState === "loading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
                 </Button>
               </div>
               {coordLookupState === "none" && (
-                <p className="text-xs text-muted-foreground">No activities found for that coordinator.</p>
+                <p className="text-xs text-muted-foreground">No activities found for that email.</p>
               )}
               {coordLookupState === "done" && coordResults.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs text-muted-foreground">Select an activity to request access:</p>
-                  {coordResults.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between rounded border p-2 gap-2">
-                      <span className="text-xs font-medium truncate">{a.name}</span>
-                      {renderJoinButton(a)}
-                    </div>
-                  ))}
-                </div>
+                <p className="text-xs text-green-700">{coordResults.length} activit{coordResults.length === 1 ? "y" : "ies"} added above.</p>
               )}
             </div>
           </CardContent>
@@ -509,23 +474,23 @@ export function StudentEvents() {
             </div>
           )}
 
-          {!activeActivity && myActivities.length === 0 && (
+          {!activeActivity && myActivityIds.length === 0 && (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Request to join an activity on the left — your coordinator will approve it.
+                Check the circle next to an activity to follow it and see its events here.
               </CardContent>
             </Card>
           )}
 
-          {(activeActivity || myActivities.length > 0) && activeEvents.length === 0 && (
+          {(activeActivity || myActivityIds.length > 0) && activeEvents.length === 0 && (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                No events scheduled yet for {activeActivity ? activeActivity.name : "your activities"}.
+                No events yet for {activeActivity ? activeActivity.name : "your activities"}.
               </CardContent>
             </Card>
           )}
 
-          {(activeActivity || myActivities.length > 0) && activeEvents.length > 0 && (
+          {(activeActivity || myActivityIds.length > 0) && activeEvents.length > 0 && (
             view === "list" ? (
               <>
                 {upcoming.length > 0 && (
@@ -546,9 +511,7 @@ export function StudentEvents() {
               <div className="space-y-6">
                 {grouped.map(({ monthLabel, events: monthEvents }) => (
                   <div key={monthLabel}>
-                    <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      {monthLabel}
-                    </h3>
+                    <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">{monthLabel}</h3>
                     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                       {monthEvents.map((ev) => {
                         const activity = activities.find((a) => a.id === ev.activityId);
@@ -556,10 +519,7 @@ export function StudentEvents() {
                         const isPast = ev.date < today;
                         const myNote = studentNotes[ev.id];
                         return (
-                          <div
-                            key={ev.id}
-                            className={cn("rounded-lg border bg-card p-3 flex flex-col gap-1.5", isPast && "opacity-60")}
-                          >
+                          <div key={ev.id} className={cn("rounded-lg border bg-card p-3 flex flex-col gap-1.5", isPast && "opacity-60")}>
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
                                 {activity && !activeActivity && (
@@ -571,7 +531,7 @@ export function StudentEvents() {
                                 </p>
                                 {ev.location && <p className="text-xs text-muted-foreground">{ev.location}</p>}
                               </div>
-                              <Button variant="ghost" size="icon-sm" onClick={() => openEdit(ev)} className="shrink-0" aria-label="Edit my details">
+                              <Button variant="ghost" size="icon-sm" onClick={() => openEdit(ev)} className="shrink-0">
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
                             </div>
@@ -598,7 +558,13 @@ export function StudentEvents() {
                                   </Button>
                                 </>
                               ) : (
-                                <Button size="sm" variant="outline" className="h-6 text-xs px-2 border-green-500 text-green-700 hover:bg-green-50 ml-auto" onClick={() => handleSubscribe(ev.id)}>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 text-xs px-2 border-green-500 text-green-700 hover:bg-green-50 ml-auto gap-1"
+                                  onClick={() => openPinDialog(ev)}
+                                >
+                                  <Lock className="h-3 w-3" />
                                   Join
                                 </Button>
                               )}
@@ -615,6 +581,43 @@ export function StudentEvents() {
           )}
         </div>
       </div>
+
+      {/* PIN dialog */}
+      <Dialog open={!!pinEvent} onOpenChange={(open) => { if (!open) setPinEvent(null); }}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-4 w-4" />
+              Enter Activity PIN
+            </DialogTitle>
+          </DialogHeader>
+          {pinEvent && (
+            <form onSubmit={submitPin} className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Enter the PIN your coordinator shared for <span className="font-medium text-foreground">{pinEvent.title}</span>.
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="pin-input">PIN</Label>
+                <Input
+                  id="pin-input"
+                  value={pinInput}
+                  onChange={(e) => { setPinInput(e.target.value); setPinError(""); }}
+                  placeholder="Enter PIN…"
+                  autoFocus
+                  autoComplete="off"
+                />
+                {pinError && <p className="text-xs text-destructive">{pinError}</p>}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setPinEvent(null)}>Cancel</Button>
+                <Button type="submit" disabled={pinLoading || !pinInput.trim()}>
+                  {pinLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit event dialog */}
       <Dialog open={!!editingEvent} onOpenChange={(open) => { if (!open) setEditingEvent(null); }}>
@@ -639,7 +642,7 @@ export function StudentEvents() {
                     )}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground italic text-xs">Transportation not yet decided by coordinator</p>
+                  <p className="text-muted-foreground italic text-xs">Transportation not yet decided</p>
                 )}
               </div>
               <div className="flex items-center gap-3">
@@ -648,12 +651,12 @@ export function StudentEvents() {
                   <div className="flex items-center gap-2">
                     <Badge className="bg-green-100 text-green-800 border-green-200">✓ Going</Badge>
                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { handleUnsubscribe(editingEvent.id); setEditingEvent(null); }}>
-                      Leave event
+                      Leave
                     </Button>
                   </div>
                 ) : (
-                  <Button size="sm" variant="outline" className="h-7 text-xs border-green-500 text-green-700 hover:bg-green-50" onClick={() => { handleSubscribe(editingEvent.id); setEditingEvent(null); }}>
-                    Join event
+                  <Button size="sm" variant="outline" className="h-7 text-xs border-green-500 text-green-700 gap-1" onClick={() => { setEditingEvent(null); openPinDialog(editingEvent); }}>
+                    <Lock className="h-3 w-3" /> Join
                   </Button>
                 )}
               </div>

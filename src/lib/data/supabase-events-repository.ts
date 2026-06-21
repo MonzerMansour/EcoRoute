@@ -9,38 +9,46 @@ function db() {
 
 // ── Activities ──────────────────────────────────────────────────────────────
 
-function rowToActivity(r: Record<string, unknown>): Activity {
+function rowToActivity(r: Record<string, unknown>, includePin = false): Activity {
   return {
     id: r.id as string,
     name: r.name as string,
     description: (r.description as string) ?? undefined,
     coordinatorId: r.coordinator_id as string,
     school: r.school as string,
+    pin: includePin ? ((r.pin as string) ?? undefined) : undefined,
   };
 }
 
-export async function dbListActivities(): Promise<Activity[]> {
+export async function dbListActivities(includePin = false): Promise<Activity[]> {
   const { data, error } = await db().from("activities").select("*").order("created_at");
   if (error) throw error;
-  return (data ?? []).map(rowToActivity);
+  return (data ?? []).map((r) => rowToActivity(r, includePin));
 }
 
 export async function dbCreateActivity(a: Omit<Activity, "id">): Promise<Activity> {
   const { data, error } = await db()
     .from("activities")
-    .insert({ name: a.name, description: a.description ?? null, coordinator_id: a.coordinatorId, school: a.school })
+    .insert({ name: a.name, description: a.description ?? null, coordinator_id: a.coordinatorId, school: a.school, pin: a.pin ?? null })
     .select("*").single();
   if (error) throw error;
-  return rowToActivity(data);
+  return rowToActivity(data, true);
 }
 
 export async function dbUpdateActivity(id: string, patch: Partial<Omit<Activity, "id">>): Promise<Activity | null> {
   const row: Record<string, unknown> = {};
   if (patch.name !== undefined) row.name = patch.name;
   if (patch.description !== undefined) row.description = patch.description ?? null;
+  if (patch.pin !== undefined) row.pin = patch.pin ?? null;
   const { data, error } = await db().from("activities").update(row).eq("id", id).select("*").maybeSingle();
   if (error) throw error;
-  return data ? rowToActivity(data) : null;
+  return data ? rowToActivity(data, true) : null;
+}
+
+export async function dbGetActivityWithPin(id: string): Promise<Activity | null> {
+  const { data, error } = await db().from("activities").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data ? rowToActivity(data, true) : null;
 }
 
 export async function dbDeleteActivity(id: string): Promise<void> {

@@ -8,9 +8,9 @@ import type { RankedVehiclePlan } from "@/lib/types";
 // have a zero free-tier quota for it.
 const MODELS: string[] = [
   ...(process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []),
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
+  "gemini-1.5-flash",
   "gemini-2.0-flash",
+  "gemini-2.5-flash-lite",
 ];
 
 /** Per-model timeout (ms) so a stalled provider can't hang the request. */

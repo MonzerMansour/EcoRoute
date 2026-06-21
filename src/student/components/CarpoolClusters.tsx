@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, Loader2, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, Sparkles, MapPin, Clock } from "lucide-react";
 import { formatCo2 } from "@/core/emissions";
 import { useCommuteStore } from "@/student/lib/useCommuteStore";
 import { Badge } from "@/components/ui/badge";
@@ -99,8 +99,51 @@ export function CarpoolClusters() {
       {loading && clusters.length === 0 && (
         <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Gemini is grouping commuters by location…
+          Grouping commuters by location…
         </div>
+      )}
+
+      {/* Fallback: show all commuters as a directory */}
+      {source === "fallback" && !loading && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">All Commuters</CardTitle>
+            <CardDescription>AI grouping unavailable — here are all logged commuters. Contact your coordinator to arrange carpools.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-y">
+              {entries.map((entry) => {
+                let displayTime: string | null = null;
+                if (entry.departureTime) {
+                  const [hh, mm] = entry.departureTime.split(":");
+                  const h = parseInt(hh);
+                  const ampm = h >= 12 ? "PM" : "AM";
+                  const h12 = h % 12 === 0 ? 12 : h % 12;
+                  displayTime = `${h12}:${mm} ${ampm}`;
+                }
+                return (
+                  <div key={entry.studentName} className="flex items-center justify-between py-2.5 gap-3">
+                    <p className="font-medium text-sm">{entry.studentName}</p>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      {(entry.customNeighborhoodLabel || entry.neighborhoodId) && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {entry.customNeighborhoodLabel?.trim() || entry.neighborhoodId}
+                        </span>
+                      )}
+                      {displayTime && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {displayTime}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">

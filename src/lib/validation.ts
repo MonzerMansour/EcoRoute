@@ -2,7 +2,16 @@ import type { TripDraft, TripType, VehicleType } from "@/lib/types";
 import { ALL_VEHICLE_TYPES } from "@/core/emissions";
 import { MAX_ROSTER_SIZE } from "@/core/optimizer";
 
-const TRIP_TYPES: TripType[] = ["away_game", "field_trip", "club", "scrimmage"];
+const TRIP_TYPES: TripType[] = [
+  "away_game",
+  "field_trip",
+  "club",
+  "scrimmage",
+  "community_service",
+  "conference",
+  "tournament",
+  "other",
+];
 
 /** Generous upper bound on one-way distance (miles) for a single trip. */
 export const MAX_DISTANCE_MILES = 5000;

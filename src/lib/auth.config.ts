@@ -22,9 +22,6 @@ export const authConfig = {
       if (user) {
         token.role = (user as { role?: UserRole }).role;
       }
-      if (account?.provider === "google" && !token.role) {
-        token.role = "teacher";
-      }
       return token;
     },
     async session({ session, token }) {

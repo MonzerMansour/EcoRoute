@@ -166,30 +166,6 @@ export function buildSeasonSummary(trips: Trip[]): SeasonSummary {
   // Gather all recommendations across trips.
   const allRecs = trips.flatMap(generateTripRecommendations);
 
-  // Opponent-swap suggestion for the single highest-distance away game.
-  const awayGames = perTrip.filter((t) => t.trip.tripType === "away_game");
-  if (awayGames.length >= 2) {
-    const sortedByDist = [...awayGames].sort(
-      (a, b) => b.trip.distanceMiles - a.trip.distanceMiles,
-    );
-    const farthest = sortedByDist[0];
-    const median =
-      sortedByDist[Math.floor(sortedByDist.length / 2)].trip.distanceMiles;
-    if (farthest.trip.distanceMiles > median * 1.5) {
-      const ratio = median / farthest.trip.distanceMiles;
-      const save = roundKg(farthest.co2Kg * (1 - ratio));
-      const pct = Math.round((1 - ratio) * 100);
-      allRecs.push({
-        id: `${farthest.trip.id}-swap`,
-        tripId: farthest.trip.id,
-        title: `Consider a closer opponent than ${farthest.trip.opponent}`,
-        detail: `${farthest.trip.name} (${farthest.trip.distanceMiles} mi) is your farthest away game. Swapping for an opponent near your median distance (${median} mi) could cut ~${pct}% of its emissions (~${save} kg).`,
-        co2SavingsKg: save,
-        severity: "high",
-      });
-    }
-  }
-
   const recommendations = allRecs
     .sort((a, b) => b.co2SavingsKg - a.co2SavingsKg)
     .slice(0, 8);

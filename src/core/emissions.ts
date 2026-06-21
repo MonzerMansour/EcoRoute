@@ -115,3 +115,33 @@ export function estimateSavings(
   const b = calculateTripEmissions({ distanceMiles, vehicleType: to });
   return roundKg(a.co2Kg - b.co2Kg);
 }
+
+// Consistent per-mile CO2 factors for student commute (kg CO2 per mile)
+export const COMMUTE_CO2_PER_MILE = {
+  solo_car: 0.411,
+  carpool_per_person: 0.137,
+  bus: 0.089,
+  walk_bike: 0,
+} as const;
+
+/** Daily round-trip commute CO2 for one person. */
+export function commuteEmissionsKg(
+  distanceMiles: number,
+  mode: "solo_car" | "carpool" | "bus" | "walk_bike",
+): number {
+  const factor =
+    mode === "solo_car" ? COMMUTE_CO2_PER_MILE.solo_car
+    : mode === "carpool" ? COMMUTE_CO2_PER_MILE.carpool_per_person
+    : mode === "bus" ? COMMUTE_CO2_PER_MILE.bus
+    : 0;
+  return roundKg(distanceMiles * 2 * factor);
+}
+
+/** CO2 saved per day by switching from solo car to carpool. */
+export function carpoolSavingsKg(distanceMiles: number): number {
+  return roundKg(
+    (COMMUTE_CO2_PER_MILE.solo_car - COMMUTE_CO2_PER_MILE.carpool_per_person) *
+      distanceMiles *
+      2,
+  );
+}

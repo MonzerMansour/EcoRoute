@@ -32,9 +32,15 @@ export interface CommuteEntry {
   id: string;
   studentName: string;
   neighborhoodId: string;
+  /** Optional display label override (e.g. from manual zip/neighborhood entry). */
+  customNeighborhoodLabel?: string;
   commuteMode: CommuteMode;
   /** Seats they could offer if driving. */
   seatsAvailable: number;
+  /** Preferred departure time (HH:MM), optional. */
+  departureTime?: string;
+  /** Preferred return time (HH:MM), optional. */
+  returnTime?: string;
 }
 
 /** Back-compat shape used by older sample data. */
@@ -74,7 +80,7 @@ function geoDistance(a: NeighborhoodOption, b: NeighborhoodOption): number {
 
 /** Round-trip solo-car CO2 for one person commuting from a neighborhood. */
 function soloDailyKg(opt: NeighborhoodOption): number {
-  return opt.distanceMiles * VEHICLE_SPECS.solo_car.co2PerMile * 2;
+  return roundKg(opt.distanceMiles * 0.411 * 2);
 }
 
 /**
@@ -112,7 +118,7 @@ export function buildClusters(entries: CommuteEntry[]): CarpoolCluster[] {
     }, 0);
     // CO2 after: one shared car covering the farthest distance in the cluster.
     const farthest = Math.max(...memberOpts.map((x) => x.opt.distanceMiles));
-    const after = farthest * VEHICLE_SPECS.carpool.co2PerMile * 2;
+    const after = roundKg(farthest * (0.411 / Math.max(1, members.length)) * 2);
     const dailySavingsKg = roundKg(Math.max(0, before - after));
 
     const pickupOrder = [...memberOpts]

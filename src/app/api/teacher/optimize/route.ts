@@ -25,6 +25,16 @@ export async function POST(request: Request) {
     allowedVehicles = ["school_bus", "minibus", "van", "carpool"];
   }
 
+  // Parse optional inventory count caps per vehicle type
+  const inventoryCounts: Partial<Record<VehicleType, number>> = {};
+  if (b.inventoryCounts && typeof b.inventoryCounts === "object") {
+    for (const [k, v] of Object.entries(b.inventoryCounts as Record<string, unknown>)) {
+      if (ALL_VEHICLE_TYPES.includes(k as VehicleType) && typeof v === "number" && v > 0) {
+        inventoryCounts[k as VehicleType] = v;
+      }
+    }
+  }
+
   if (!Number.isFinite(rosterSize) || rosterSize <= 0) {
     return NextResponse.json(
       { error: "rosterSize must be a positive number." },
@@ -54,6 +64,7 @@ export async function POST(request: Request) {
     rosterSize,
     distanceMiles,
     allowedVehicles,
+    inventoryCounts: Object.keys(inventoryCounts).length > 0 ? inventoryCounts : undefined,
   });
 
   return NextResponse.json({ plans });

@@ -1,8 +1,8 @@
-import { TrendingDown, Bus, Route, Leaf } from "lucide-react";
+import { TrendingDown, Bus, Route, Leaf, TreePine } from "lucide-react";
 import { getTripRepository } from "@/lib/data";
 import { getOwnerId } from "@/lib/session";
 import { buildSeasonSummary } from "@/core/season";
-import { formatCo2, VEHICLE_SPECS } from "@/core/emissions";
+import { formatCo2 } from "@/core/emissions";
 import { AiSeasonReport } from "@/teacher/components/AiSeasonReport";
 import { SEVERITY_STYLES, formatDate } from "@/teacher/lib/display";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -14,16 +14,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
-export const metadata = { title: "Season Dashboard" };
+export const metadata = { title: "Emissions Dashboard" };
 
 export default async function TeacherDashboardPage() {
   const ownerId = await getOwnerId();
@@ -64,31 +56,34 @@ export default async function TeacherDashboardPage() {
     },
   ];
 
+  const topChanges = summary.recommendations
+    .filter((r) => r.co2SavingsKg > 0)
+    .slice(0, 3);
+
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="space-y-6">
+<div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Season Emissions Dashboard</h1>
-          <p className="mt-2 text-muted-foreground">
-            Your team travel footprint, ranked trips, and the highest-impact
-            changes — powered by EcoRoute&apos;s shared AI engine.
+          <h1 className="text-2xl font-bold">Emissions Dashboard</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your outside trip footprint and top actions to reduce it.
           </p>
         </div>
-        <ButtonLink href="/teacher/trips">Manage trips</ButtonLink>
+        <ButtonLink href="/teacher/trips" size="sm">Manage trips</ButtonLink>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.label}>
-            <CardContent className="pt-6">
+            <CardContent className="pt-5 pb-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-                <stat.icon className="h-4 w-4 text-primary" />
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
+                <stat.icon className="h-3.5 w-3.5 text-primary" />
               </div>
-              <p className="mt-2 text-2xl font-bold text-primary">
+              <p className="mt-1.5 text-xl font-bold text-primary">
                 {stat.value}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">{stat.hint}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{stat.hint}</p>
             </CardContent>
           </Card>
         ))}
@@ -105,12 +100,12 @@ export default async function TeacherDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {summary.recommendations.length === 0 ? (
+            {topChanges.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Your trips are already well optimized. Nice work!
               </p>
             ) : (
-              summary.recommendations.slice(0, 4).map((rec) => (
+              topChanges.map((rec) => (
                 <div
                   key={rec.id}
                   className={`rounded-lg border p-3 ${SEVERITY_STYLES[rec.severity]}`}
@@ -140,81 +135,59 @@ export default async function TeacherDashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Trips ranked by emissions</CardTitle>
-          <CardDescription>
-            Highest-emission games first — focus your effort here.
-          </CardDescription>
+          <CardTitle>Quick links</CardTitle>
+          <CardDescription>Jump to the tools you need.</CardDescription>
         </CardHeader>
         <CardContent>
-          {summary.rankedTrips.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No trips yet.{" "}
-              <ButtonLink href="/teacher/trips" variant="link" className="h-auto p-0">
-                Add your first trip
-              </ButtonLink>
+          <div className="flex flex-wrap gap-3">
+            <ButtonLink href="/teacher/trips" variant="outline" size="sm">
+              Trips
+            </ButtonLink>
+            <ButtonLink href="/teacher/optimizer" variant="outline" size="sm">
+              Optimizer
+            </ButtonLink>
+            <ButtonLink href="/teacher/recommendations" variant="outline" size="sm">
+              Recommendations
+            </ButtonLink>
+            <ButtonLink href="/teacher/fleet" variant="outline" size="sm">
+              Inventory
+            </ButtonLink>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-emerald-200 bg-emerald-50">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <TreePine className="h-5 w-5 text-emerald-600" />
+            <CardTitle>School-Wide Environmental Impact</CardTitle>
+          </div>
+          <CardDescription>
+            Combine with student carpool data for full school footprint
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1">
+            <p className="text-2xl font-bold text-emerald-700">
+              {formatCo2(summary.baselineTotalCo2Kg - summary.totalCo2Kg)}
             </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Trip</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Distance</TableHead>
-                  <TableHead className="text-right">Roster</TableHead>
-                  <TableHead>Current plan</TableHead>
-                  <TableHead className="text-right">CO₂ (round trip)</TableHead>
-                  <TableHead className="text-right">Optimal</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {summary.rankedTrips.map(({ trip, co2Kg, optimalCo2Kg }) => {
-                  const gap = co2Kg - optimalCo2Kg;
-                  return (
-                    <TableRow key={trip.id}>
-                      <TableCell className="font-medium">
-                        {trip.name}
-                        <span className="block text-xs text-muted-foreground">
-                          vs {trip.opponent}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(trip.date)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {trip.distanceMiles} mi
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {trip.rosterSize}
-                      </TableCell>
-                      <TableCell>
-                        {trip.chosenVehicleType ? (
-                          <Badge variant="outline">
-                            {VEHICLE_SPECS[trip.chosenVehicleType].shortLabel}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            optimal
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCo2(co2Kg)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {gap > 1 ? (
-                          <span className="text-primary">
-                            {formatCo2(optimalCo2Kg)}
-                          </span>
-                        ) : (
-                          <Badge variant="secondary">best</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
+            <p className="text-sm font-medium">Total CO₂ saved vs all-bus</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-2xl font-bold text-emerald-700">
+              {formatCo2(summary.potentialSavingsKg)}{" "}
+              <span className="text-base font-normal text-muted-foreground">
+                potential
+              </span>
+            </p>
+            <p className="text-sm font-medium">Optimized vs current</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-2xl font-bold text-emerald-700">
+              {summary.tripCount}
+            </p>
+            <p className="text-sm font-medium">Trips this season</p>
+          </div>
         </CardContent>
       </Card>
     </div>

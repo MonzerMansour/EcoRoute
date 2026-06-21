@@ -1,22 +1,35 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Leaf } from "lucide-react";
+import { Leaf, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Separator } from "@/components/ui/separator";
 import { SignOutButton } from "@/components/auth/SignOutButton";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useTourStore } from "@/components/tour/GuidedTour";
 
 const navLinks = [
   { href: "/teacher", label: "Dashboard" },
   { href: "/teacher/trips", label: "Trips" },
+  { href: "/teacher/activities", label: "Activities" },
   { href: "/teacher/optimizer", label: "Optimizer" },
   { href: "/teacher/recommendations", label: "Recommendations" },
-  { href: "/teacher/events", label: "Events" },
+  { href: "/teacher/fleet", label: "Inventory" },
 ];
 
 export function TeacherNav() {
   const pathname = usePathname();
+  const { openTour } = useTourStore();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <div className="border-b border-border bg-card">
@@ -30,9 +43,17 @@ export function TeacherNav() {
             <Leaf className="h-4 w-4" />
           </div>
           <span className="font-bold">EcoRoute</span>
-          <span className="text-sm text-muted-foreground">Coach</span>
+          <span className="text-sm text-muted-foreground">Coordinator</span>
         </ButtonLink>
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Settings"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
           <ButtonLink href="/" variant="outline" size="sm">
             Back to site
           </ButtonLink>
@@ -62,6 +83,30 @@ export function TeacherNav() {
         })}
       </nav>
       <Separator />
+
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Settings</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex items-center gap-3">
+              <input
+                id="rerun-tour"
+                type="checkbox"
+                className="h-4 w-4 rounded border-border"
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSettingsOpen(false);
+                    openTour();
+                  }
+                }}
+              />
+              <Label htmlFor="rerun-tour">Re-run the guided tour</Label>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

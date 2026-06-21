@@ -42,7 +42,6 @@ export function TrackComparison() {
                   <Trophy className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium opacity-80">Track A</p>
                   <CardTitle className="text-2xl text-primary-foreground">
                     For Schools & Teams
                   </CardTitle>
@@ -77,7 +76,6 @@ export function TrackComparison() {
                   <GraduationCap className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium opacity-80">Track B</p>
                   <CardTitle className="text-2xl text-secondary-foreground">
                     For Students & Parents
                   </CardTitle>

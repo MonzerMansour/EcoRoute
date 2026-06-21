@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import type { FleetEntry } from "./FleetManager";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, List, CalendarDays } from "lucide-react";
 import type { Trip, TripDraft, TripType, VehicleType } from "@/lib/types";
 import { VEHICLE_SPECS } from "@/core/emissions";
 import { TRIP_TYPE_LABELS, VEHICLE_OPTIONS, formatDate } from "@/teacher/lib/display";
@@ -36,7 +37,16 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-const TRIP_TYPES: TripType[] = ["away_game", "field_trip", "club", "scrimmage"];
+const TRIP_TYPES: TripType[] = [
+  "away_game",
+  "field_trip",
+  "club",
+  "scrimmage",
+  "community_service",
+  "conference",
+  "tournament",
+  "other",
+];
 
 const emptyForm = (): TripDraft => ({
   name: "",
@@ -54,9 +64,41 @@ const emptyForm = (): TripDraft => ({
 const selectClass =
   "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
+function groupTripsByMonth(trips: Trip[]): { monthLabel: string; trips: Trip[] }[] {
+  const map = new Map<string, Trip[]>();
+  for (const trip of [...trips].sort((a, b) => a.date.localeCompare(b.date))) {
+    const [year, month] = trip.date.split("-");
+    const key = `${year}-${month}`;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(trip);
+  }
+  return Array.from(map.entries()).map(([key, trips]) => {
+    const [year, month] = key.split("-");
+    const label = new Date(Number(year), Number(month) - 1, 1).toLocaleDateString(
+      undefined,
+      { month: "long", year: "numeric" }
+    );
+    return { monthLabel: label, trips };
+  });
+}
+
 export function TripManager({ initialTrips }: { initialTrips: Trip[] }) {
   const router = useRouter();
   const [trips, setTrips] = useState<Trip[]>(initialTrips);
+  const [fleet, setFleet] = useState<FleetEntry[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("ecoroute_fleet");
+      if (raw) setFleet(JSON.parse(raw) as FleetEntry[]);
+    } catch { /* ignore */ }
+  }, []);
+
+  function fleetMpgForType(type: VehicleType): number | undefined {
+    const match = fleet.find((f) => f.type === type && f.mpg && f.fuelType !== "electric");
+    return match?.mpg;
+  }
+  const [view, setView] = useState<"list" | "calendar">("list");
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<TripDraft>(emptyForm());
@@ -150,21 +192,55 @@ export function TripManager({ initialTrips }: { initialTrips: Trip[] }) {
     }
   }
 
+  const grouped = groupTripsByMonth(trips);
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <CardTitle>Season & Event Travel Planner</CardTitle>
+            <CardTitle>Outside Trip Planner</CardTitle>
             <CardDescription>
-              Add away games, field trips, and club travel. EcoRoute computes
-              emissions and the optimal vehicle plan for each.
+              Add sports trips, field trips, conferences, and more. EcoRoute
+              computes emissions and the optimal vehicle plan for each.
             </CardDescription>
           </div>
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" />
-            Add trip
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                className={cn(
+                  "px-3 py-1.5 text-xs flex items-center gap-1 transition-colors",
+                  view === "list"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+                aria-label="List view"
+              >
+                <List className="h-3.5 w-3.5" />
+                List
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("calendar")}
+                className={cn(
+                  "px-3 py-1.5 text-xs flex items-center gap-1 transition-colors",
+                  view === "calendar"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+                aria-label="Calendar view"
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                Calendar
+              </button>
+            </div>
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              Add trip
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -172,7 +248,7 @@ export function TripManager({ initialTrips }: { initialTrips: Trip[] }) {
           <p className="py-8 text-center text-sm text-muted-foreground">
             No trips yet. Click <strong>Add trip</strong> to plan your season.
           </p>
-        ) : (
+        ) : view === "list" ? (
           <Table>
             <TableHeader>
               <TableRow>
@@ -191,7 +267,7 @@ export function TripManager({ initialTrips }: { initialTrips: Trip[] }) {
                   <TableCell className="font-medium">
                     {trip.name}
                     <span className="block text-xs text-muted-foreground">
-                      vs {trip.opponent}
+                      {trip.opponent}
                     </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
@@ -208,9 +284,16 @@ export function TripManager({ initialTrips }: { initialTrips: Trip[] }) {
                   <TableCell className="text-right">{trip.rosterSize}</TableCell>
                   <TableCell>
                     {trip.chosenVehicleType ? (
-                      <Badge variant="outline">
-                        {VEHICLE_SPECS[trip.chosenVehicleType].shortLabel}
-                      </Badge>
+                      <div className="flex flex-col gap-0.5">
+                        <Badge variant="outline">
+                          {VEHICLE_SPECS[trip.chosenVehicleType].shortLabel}
+                        </Badge>
+                        {fleetMpgForType(trip.chosenVehicleType) && (
+                          <span className="text-xs text-muted-foreground">
+                            {fleetMpgForType(trip.chosenVehicleType)} mpg
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
@@ -244,6 +327,67 @@ export function TripManager({ initialTrips }: { initialTrips: Trip[] }) {
               ))}
             </TableBody>
           </Table>
+        ) : (
+          <div className="space-y-6">
+            {grouped.map(({ monthLabel, trips: monthTrips }) => (
+              <div key={monthLabel}>
+                <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  {monthLabel}
+                </h3>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {monthTrips.map((trip) => (
+                    <div
+                      key={trip.id}
+                      className="rounded-lg border border-border bg-card p-3 flex flex-col gap-1"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium leading-tight">{trip.name}</p>
+                          <p className="text-xs text-muted-foreground">{trip.opponent}</p>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => openEdit(trip)}
+                            aria-label="Edit trip"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => remove(trip.id)}
+                            disabled={deletingId === trip.id}
+                            aria-label="Delete trip"
+                          >
+                            {deletingId === trip.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-muted-foreground">{formatDate(trip.date)}</span>
+                        <Badge variant="secondary" className="text-xs py-0">
+                          {TRIP_TYPE_LABELS[trip.tripType]}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">{trip.distanceMiles} mi</span>
+                        {trip.chosenVehicleType && (
+                          <Badge variant="outline" className="text-xs py-0">
+                            {VEHICLE_SPECS[trip.chosenVehicleType].shortLabel}
+                            {fleetMpgForType(trip.chosenVehicleType) && ` · ${fleetMpgForType(trip.chosenVehicleType)} mpg`}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </CardContent>
 
@@ -278,12 +422,12 @@ export function TripManager({ initialTrips }: { initialTrips: Trip[] }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="opponent">Opponent school</Label>
+                <Label htmlFor="opponent">Opponent / Destination</Label>
                 <Input
                   id="opponent"
                   value={form.opponent}
                   onChange={(e) => set("opponent", e.target.value)}
-                  placeholder="Riverside High"
+                  placeholder="e.g. Riverside High or City Museum"
                 />
               </div>
               <div className="space-y-2">

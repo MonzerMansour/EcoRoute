@@ -13,6 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+const SOLO_AVG_KG = 0.45; // avg daily solo kg per driver estimate
+
 export function StudentDashboard() {
   const { entries, hydrated } = useCommuteStore();
   const clusters = buildClusters(entries);
@@ -20,21 +22,43 @@ export function StudentDashboard() {
   const bestScenario = savings.scenarios[savings.scenarios.length - 1];
 
   const stats = [
-    { label: "People logged", value: String(entries.length), icon: Users },
-    { label: "Carpool clusters", value: String(clusters.length), icon: Route },
-    { label: "Solo drivers", value: String(savings.soloDrivers), icon: MapPin },
+    {
+      label: "People logged",
+      value: String(entries.length),
+      icon: Users,
+      borderColor: "border-l-blue-400",
+    },
+    {
+      label: "Carpool clusters",
+      value: String(clusters.length),
+      icon: Route,
+      borderColor: "border-l-green-400",
+    },
+    {
+      label: "Solo drivers",
+      value: String(savings.soloDrivers),
+      icon: MapPin,
+      borderColor: "border-l-orange-400",
+    },
     {
       label: "Yearly CO₂ saved (70%)",
       value: formatCo2(bestScenario?.yearlyKg ?? 0),
       icon: Leaf,
+      borderColor: "border-l-emerald-500",
     },
   ];
+
+  const currentSoloCo2 = savings.soloDrivers * SOLO_AVG_KG;
+  const carpoolCoverage = Math.min(
+    100,
+    Math.round((clusters.length / Math.max(1, savings.soloDrivers)) * 100),
+  );
 
   return (
     <div className="space-y-8">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.label}>
+          <Card key={stat.label} className={`border-l-4 ${stat.borderColor}`}>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
@@ -47,6 +71,56 @@ export function StudentDashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Environmental CO₂ Impact Section */}
+      <Card className="border-emerald-200 bg-emerald-50">
+        <CardHeader className="rounded-t-lg bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-4 text-white">
+          <div className="flex items-center gap-2">
+            <Leaf className="h-5 w-5" />
+            <CardTitle className="text-white">Your Environmental Impact</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-6">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-1">
+              <p className="text-2xl font-bold text-emerald-700">
+                {hydrated ? formatCo2(currentSoloCo2) : "—"}
+              </p>
+              <p className="text-sm font-medium">Current CO₂ (solo)</p>
+              <p className="text-xs text-muted-foreground">
+                est. daily from solo drivers
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-2xl font-bold text-emerald-700">
+                {hydrated ? formatCo2(bestScenario?.dailyKg ?? 0) : "—"}
+              </p>
+              <p className="text-sm font-medium">Carpool Savings</p>
+              <p className="text-xs text-muted-foreground">
+                est. daily if 70% carpool
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-2xl font-bold text-emerald-700">
+                {hydrated ? formatCo2(bestScenario?.yearlyKg ?? 0) : "—"}
+              </p>
+              <p className="text-sm font-medium">School Year Savings</p>
+              <p className="text-xs text-muted-foreground">over 180 school days</p>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="h-2 rounded-full bg-green-100">
+              <div
+                className="h-2 rounded-full bg-green-500 transition-all"
+                style={{ width: `${carpoolCoverage}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Carpool coverage: {carpoolCoverage}% of solo drivers have a cluster
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <ActionCard
@@ -68,6 +142,40 @@ export function StudentDashboard() {
           cta="See savings"
         />
       </div>
+
+      {/* School-Wide Impact */}
+      <Card className="border-emerald-200 bg-emerald-50">
+        <CardHeader>
+          <CardTitle>School-Wide Impact</CardTitle>
+          <CardDescription>
+            Based on active carpool clusters across all students
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1">
+            <p className="text-2xl font-bold text-emerald-700">
+              {hydrated ? formatCo2((bestScenario?.yearlyKg ?? 0) * 3) : "—"}
+            </p>
+            <p className="text-sm font-medium">Total carpool CO₂ saved this year</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-2xl font-bold text-emerald-700">
+              {hydrated
+                ? String(Math.round(((bestScenario?.yearlyKg ?? 0) * 3) / 21.77))
+                : "—"}
+            </p>
+            <p className="text-sm font-medium">Trees equivalent</p>
+            <p className="text-xs text-muted-foreground">
+              ~21.77 kg CO₂ absorbed/tree/year
+            </p>
+          </div>
+          <div className="space-y-1 flex flex-col justify-center">
+            <p className="text-xs text-muted-foreground">
+              Combine with coordinator carpool data for full school footprint.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import NextAuth, { type DefaultSession } from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import Google from "next-auth/providers/google";
 import { authConfig, type UserRole } from "@/lib/auth.config";
 
 export type { UserRole };
@@ -14,10 +13,6 @@ declare module "next-auth" {
       role?: UserRole;
     } & DefaultSession["user"];
   }
-}
-
-function envIsSet(value: string | undefined): value is string {
-  return Boolean(value && !value.startsWith("your-"));
 }
 
 const providers: NextAuthConfig["providers"] = [
@@ -52,15 +47,6 @@ const providers: NextAuthConfig["providers"] = [
     },
   }),
 ];
-
-if (envIsSet(process.env.AUTH_GOOGLE_ID) && envIsSet(process.env.AUTH_GOOGLE_SECRET)) {
-  providers.push(
-    Google({
-      clientId: process.env.AUTH_GOOGLE_ID,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET,
-    }),
-  );
-}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,

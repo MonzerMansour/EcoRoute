@@ -164,7 +164,6 @@ export async function generateTripInsight(
   trip: Trip,
   plans: RankedVehiclePlan[],
 ): Promise<TripInsight> {
-  const best = plans[0];
   const dataContext = {
     trip: {
       name: trip.name,
@@ -182,16 +181,26 @@ export async function generateTripInsight(
     })),
   };
 
-  const prompt = `You are EcoRoute, helping a coach pick the greenest vehicle setup for one trip.
-Do not invent numbers; only use those provided.
+  const chosen = dataContext.trip.chosen !== "none" ? dataContext.trip.chosen : null;
+  const best = plans[0];
+  const worst = plans[plans.length - 1];
+  const spread = best && worst && worst.co2Kg > best.co2Kg
+    ? formatCo2(worst.co2Kg - best.co2Kg)
+    : null;
 
-Trip data (JSON):
-${JSON.stringify(dataContext, null, 2)}
+  const prompt = `You are EcoRoute. A coach needs a quick, specific insight for this exact trip.
+
+Trip: "${dataContext.trip.name}" — ${dataContext.trip.distanceMiles} miles each way, ${dataContext.trip.rosterSize} people${chosen ? `, currently planning to use ${chosen}` : ""}.
+Best vehicle option: ${best?.label ?? "unknown"} at ${best ? formatCo2(best.co2Kg) : "?"} CO₂ round trip.
+${spread ? `Worst option emits ${spread} more CO₂ than best.` : ""}
+All options ranked: ${plans.map(p => `${p.label} (${formatCo2(p.co2Kg)}${p.pctWorseThanBest > 0 ? `, +${p.pctWorseThanBest}%` : ""})`).join(" | ")}
+
+Write a short, direct insight FOR THIS SPECIFIC TRIP. Mention the trip name, the actual CO₂ numbers, and what makes the best option win here (distance, roster size, or mix). Be concrete, not generic. Do NOT pad with filler phrases.
 
 Return ONLY JSON:
 {
-  "summary": string,         // 1-2 sentences describing the emissions tradeoffs
-  "recommendation": string   // 1 sentence telling the coach what to do
+  "summary": string,        // 2 sentences max — specific to this trip's numbers
+  "recommendation": string  // 1 punchy sentence: what to do and why
 }`;
 
   const cacheKey = `trip:${trip.id}:${trip.updatedAt}:${best?.label ?? "none"}`;

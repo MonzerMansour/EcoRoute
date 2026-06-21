@@ -1,4 +1,4 @@
-// Shared domain types for the EcoRoute teacher (Track A) experience.
+// Shared domain types for EcoRoute.
 // These are intentionally framework-agnostic so they can back either an
 // in-memory store today or a real database later.
 
@@ -9,7 +9,15 @@ export type VehicleType =
   | "carpool"
   | "solo_car";
 
-export type TripType = "away_game" | "field_trip" | "club" | "scrimmage";
+export type TripType =
+  | "away_game"
+  | "field_trip"
+  | "club"
+  | "scrimmage"
+  | "community_service"
+  | "conference"
+  | "tournament"
+  | "other";
 
 /** A vehicle the school has access to, with how many are available. */
 export interface FleetVehicle {

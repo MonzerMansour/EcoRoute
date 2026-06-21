@@ -88,7 +88,7 @@ export default function ForSchoolsPage() {
           <div className="max-w-3xl">
             <Badge className="mb-4 gap-1.5 px-3 py-1">
               <Trophy className="h-4 w-4" />
-              Track A — For Schools & Teams
+              For Schools & Teams
             </Badge>
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
               Sports Travel Footprint Optimizer

@@ -116,9 +116,8 @@ export default function FeaturesPage() {
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12">
-            <Badge className="mb-1">Track A</Badge>
             <h2 className="mt-1 text-2xl font-bold">
-              Teacher & Staff Features
+              Coordinator & Staff Features
             </h2>
           </div>
           <FeatureGrid features={schoolFeatures} columns={2} />
@@ -128,7 +127,6 @@ export default function FeaturesPage() {
       <section className="border-y border-border bg-card py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12">
-            <Badge variant="secondary" className="mb-1">Track B</Badge>
             <h2 className="mt-1 text-2xl font-bold">
               Student & Parent Features
             </h2>

@@ -59,12 +59,15 @@ export function optimizeVehicleLoad({
   rosterSize,
   distanceMiles,
   allowedVehicles,
+  inventoryCounts,
   roundTrip = true,
   maxResults = 6,
 }: {
   rosterSize: number;
   distanceMiles: number;
   allowedVehicles: VehicleType[];
+  /** Max count of each vehicle type the school actually has. No key = unlimited. */
+  inventoryCounts?: Partial<Record<VehicleType, number>>;
   roundTrip?: boolean;
   maxResults?: number;
 }): RankedVehiclePlan[] {
@@ -115,10 +118,13 @@ export function optimizeVehicleLoad({
     const type = types[index];
     const spec = VEHICLE_SPECS[type];
     const remaining = Math.max(0, safeRoster - seats);
-    // Cap count: enough to cover the remaining roster with this type, +1 slack.
+    const inventoryMax = inventoryCounts?.[type] ?? Infinity;
+    // Cap count: enough to cover the remaining roster with this type, +1 slack,
+    // but never more than what the school actually has.
     const maxCount = Math.min(
       Math.ceil(safeRoster / spec.capacity) + 1,
       Math.ceil(remaining / spec.capacity) + 1,
+      inventoryMax,
     );
 
     for (let count = 0; count <= maxCount; count++) {

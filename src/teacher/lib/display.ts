@@ -11,6 +11,10 @@ export const TRIP_TYPE_LABELS: Record<string, string> = {
   field_trip: "Field trip",
   club: "Club travel",
   scrimmage: "Scrimmage",
+  community_service: "Community Service",
+  conference: "Conference",
+  tournament: "Tournament",
+  other: "Other Travel",
 };
 
 export const VEHICLE_OPTIONS: { value: VehicleType; label: string }[] = [

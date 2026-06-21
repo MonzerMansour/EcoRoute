@@ -18,14 +18,28 @@ export async function POST(request: Request) {
   const password = typeof b.password === "string" ? b.password : "";
   const name = typeof b.name === "string" ? b.name.trim() : "";
   const role: UserRole = b.role === "student" ? "student" : "teacher";
+  const parentEmail =
+    typeof b.parentEmail === "string" ? b.parentEmail.trim() : undefined;
+  const activities = Array.isArray(b.activities)
+    ? (b.activities as unknown[]).filter((a): a is string => typeof a === "string")
+    : [];
+  const school = typeof b.school === "string" ? b.school.trim() : "";
 
   const errors: string[] = [];
   if (!EMAIL_RE.test(email)) errors.push("Enter a valid email address.");
   if (password.length < MIN_PASSWORD)
     errors.push(`Password must be at least ${MIN_PASSWORD} characters.`);
+  if (parentEmail && !EMAIL_RE.test(parentEmail))
+    errors.push("Parent email address is not valid.");
+  if (!school || school.length < 2) errors.push("School name is required.");
   if (errors.length > 0) {
     return NextResponse.json({ errors }, { status: 422 });
   }
+
+  // parentEmail, activities, and school are accepted for future use
+  void parentEmail;
+  void activities;
+  console.log(`[register] school: ${school}`);
 
   const result = await createUser({ email, password, name, role });
   if (!result.ok) {

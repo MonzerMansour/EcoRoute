@@ -87,7 +87,7 @@ export default function ForStudentsPage() {
           <div className="max-w-3xl">
             <Badge variant="secondary" className="mb-4 gap-1.5 px-3 py-1">
               <GraduationCap className="h-4 w-4" />
-              Track B — For Students & Parents
+              For Students & Parents
             </Badge>
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
               Schoolwide Carpool Clustering

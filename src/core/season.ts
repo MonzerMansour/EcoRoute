@@ -51,7 +51,9 @@ export function summarizeTrip(trip: Trip): TripEmissionSummary {
     })[0]?.co2Kg ?? optimal.co2Kg;
 
   const chosen = chosenPlan(trip);
-  const co2Kg = chosen ? chosen.co2Kg : optimal.co2Kg;
+  // If no vehicle chosen yet, assume school-bus baseline as the current cost
+  // so potential savings are non-zero and comparable to the baseline column.
+  const co2Kg = chosen ? chosen.co2Kg : baseline;
 
   return {
     trip,

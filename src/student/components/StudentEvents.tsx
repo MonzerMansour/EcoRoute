@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   CheckCircle2,
-  Circle,
   Search,
   Loader2,
   List,
@@ -209,8 +208,12 @@ export function StudentEvents() {
   }
 
   const today = todayStr();
+
+  // Only show activities this student indicated they're part of (set at signup or via lookup)
+  const myActivities = activities.filter((a) => myActivityIds.includes(a.id));
+
   const myEvents = events.filter((ev) => myActivityIds.includes(ev.activityId));
-  const activeActivity = activities.find((a) => a.id === selectedActivityId) ?? null;
+  const activeActivity = myActivities.find((a) => a.id === selectedActivityId) ?? null;
   const activeEvents = selectedActivityId
     ? events.filter((ev) => ev.activityId === selectedActivityId)
     : myEvents;
@@ -304,64 +307,14 @@ export function StudentEvents() {
     );
   }
 
-  if (activities.length === 0) {
-    return (
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Follow a Coordinator</CardTitle>
-            <CardDescription className="text-xs">
-              Enter your coach or teacher&apos;s email to see their activities and events.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex gap-2">
-              <Input
-                placeholder="coach@school.edu"
-                type="email"
-                value={coordEmail}
-                onChange={(e) => { setCoordEmail(e.target.value); setCoordLookupState("idle"); }}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), lookupCoordinator())}
-              />
-              <Button variant="outline" onClick={lookupCoordinator} disabled={coordLookupState === "loading"}>
-                {coordLookupState === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              </Button>
-            </div>
-            {coordLookupState === "none" && (
-              <p className="text-sm text-muted-foreground">No activities found for that coordinator.</p>
-            )}
-            {coordLookupState === "done" && coordResults.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Activities found — follow them to see events:</p>
-                {coordResults.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
-                    <span>{a.name}</span>
-                    <Button
-                      size="sm"
-                      variant={myActivityIds.includes(a.id) ? "secondary" : "outline"}
-                      className="h-7 text-xs"
-                      onClick={() => toggleActivity(a.id)}
-                    >
-                      {myActivityIds.includes(a.id) ? "Following ✓" : "Follow"}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           Signed in as <span className="font-medium text-foreground">{studentName}</span>
-          {myActivityIds.length > 0 && (
+          {myActivities.length > 0 && (
             <span className="ml-2 text-xs text-muted-foreground">
-              · following {myActivityIds.length} activit{myActivityIds.length === 1 ? "y" : "ies"}
+              · {myActivities.length} activit{myActivities.length === 1 ? "y" : "ies"}
             </span>
           )}
         </p>
@@ -403,47 +356,50 @@ export function StudentEvents() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">My Activities</CardTitle>
             <CardDescription className="text-xs">
-              Check the ones you&apos;re part of to see their events.
+              Your activities from when you signed up. Click one to filter events.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-1 p-3 pt-0">
-            {activities.map((a) => {
-              const isFollowing = myActivityIds.includes(a.id);
-              const evCount = events.filter((e) => e.activityId === a.id).length;
-              return (
-                <div
-                  key={a.id}
-                  className={cn(
-                    "cursor-pointer rounded-lg border p-3 transition-colors",
-                    selectedActivityId === a.id
-                      ? "border-primary bg-primary/5"
-                      : "hover:bg-muted/50"
-                  )}
-                  onClick={() => setSelectedActivityId((prev) => prev === a.id ? null : a.id)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{a.name}</p>
-                      {a.description && (
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{a.description}</p>
-                      )}
-                      <p className="mt-0.5 text-xs text-muted-foreground">{evCount} event{evCount !== 1 ? "s" : ""}</p>
-                    </div>
-                    <button
-                      className="shrink-0 mt-0.5"
-                      onClick={(e) => { e.stopPropagation(); toggleActivity(a.id); }}
-                      title={isFollowing ? "Unfollow" : "Follow"}
-                    >
-                      {isFollowing ? (
+            {myActivities.length === 0 ? (
+              <p className="py-3 text-xs text-muted-foreground">
+                No activities yet. Use the lookup below to add one.
+              </p>
+            ) : (
+              myActivities.map((a) => {
+                const evCount = events.filter((e) => e.activityId === a.id).length;
+                return (
+                  <div
+                    key={a.id}
+                    className={cn(
+                      "cursor-pointer rounded-lg border p-3 transition-colors",
+                      selectedActivityId === a.id
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-muted/50"
+                    )}
+                    onClick={() => setSelectedActivityId((prev) => prev === a.id ? null : a.id)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{a.name}</p>
+                        {a.description && (
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">{a.description}</p>
+                        )}
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {evCount} event{evCount !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      <button
+                        className="shrink-0 mt-0.5"
+                        onClick={(e) => { e.stopPropagation(); toggleActivity(a.id); }}
+                        title="Remove from my activities"
+                      >
                         <CheckCircle2 className="h-5 w-5 text-primary" />
-                      ) : (
-                        <Circle className="h-5 w-5 text-muted-foreground/40" />
-                      )}
-                    </button>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
 
             {/* Coordinator lookup */}
             <div className="space-y-2 pt-2">
@@ -507,23 +463,23 @@ export function StudentEvents() {
             </div>
           )}
 
-          {!activeActivity && myActivityIds.length === 0 && (
+          {!activeActivity && myActivities.length === 0 && (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Check the circle next to an activity on the left to follow it and see its events here.
+                Add an activity on the left to see its events here.
               </CardContent>
             </Card>
           )}
 
-          {(activeActivity || myActivityIds.length > 0) && activeEvents.length === 0 && (
+          {(activeActivity || myActivities.length > 0) && activeEvents.length === 0 && (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                No events yet for {activeActivity ? activeActivity.name : "your activities"}.
+                No events scheduled yet for {activeActivity ? activeActivity.name : "your activities"}.
               </CardContent>
             </Card>
           )}
 
-          {(activeActivity || myActivityIds.length > 0) && activeEvents.length > 0 && (
+          {(activeActivity || myActivities.length > 0) && activeEvents.length > 0 && (
             view === "list" ? (
               <>
                 {upcoming.length > 0 && (

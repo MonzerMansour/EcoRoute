@@ -133,29 +133,6 @@ export default async function TeacherDashboardPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick links</CardTitle>
-          <CardDescription>Jump to the tools you need.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            <ButtonLink href="/teacher/trips" variant="outline" size="sm">
-              Trips
-            </ButtonLink>
-            <ButtonLink href="/teacher/optimizer" variant="outline" size="sm">
-              Optimizer
-            </ButtonLink>
-            <ButtonLink href="/teacher/recommendations" variant="outline" size="sm">
-              Recommendations
-            </ButtonLink>
-            <ButtonLink href="/teacher/fleet" variant="outline" size="sm">
-              Inventory
-            </ButtonLink>
-          </div>
-        </CardContent>
-      </Card>
-
       <Card className="border-emerald-200 bg-emerald-50">
         <CardHeader>
           <div className="flex items-center gap-2">

@@ -4,7 +4,6 @@ import { Users, Route, Leaf, MapPin } from "lucide-react";
 import { buildClusters, estimateSavings } from "@/student/lib/carpools";
 import { formatCo2 } from "@/core/emissions";
 import { useCommuteStore } from "@/student/lib/useCommuteStore";
-import { ButtonLink } from "@/components/ui/button-link";
 import {
   Card,
   CardContent,
@@ -122,27 +121,6 @@ export function StudentDashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <ActionCard
-          title="Map your commute"
-          desc="Log neighborhoods and commute modes to find carpool partners."
-          href="/student/commute"
-          cta="Open mapper"
-        />
-        <ActionCard
-          title="View carpool clusters"
-          desc="See auto-grouped carpools with suggested pickup order."
-          href="/student/carpools"
-          cta="See clusters"
-        />
-        <ActionCard
-          title="Estimate savings"
-          desc="Model CO₂ savings at 30/50/70% participation and for home games."
-          href="/student/savings"
-          cta="See savings"
-        />
-      </div>
-
       {/* School-Wide Impact */}
       <Card className="border-emerald-200 bg-emerald-50">
         <CardHeader>
@@ -180,28 +158,3 @@ export function StudentDashboard() {
   );
 }
 
-function ActionCard({
-  title,
-  desc,
-  href,
-  cta,
-}: {
-  title: string;
-  desc: string;
-  href: string;
-  cta: string;
-}) {
-  return (
-    <Card className="flex flex-col">
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-        <CardDescription>{desc}</CardDescription>
-      </CardHeader>
-      <CardContent className="mt-auto">
-        <ButtonLink href={href} variant="outline" size="sm">
-          {cta}
-        </ButtonLink>
-      </CardContent>
-    </Card>
-  );
-}

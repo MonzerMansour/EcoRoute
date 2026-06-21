@@ -125,6 +125,21 @@ export function LoginForm({ role, title, subtitle }: LoginFormProps) {
             : "Invalid email or password. Please try again.",
         );
       } else {
+        // Verify the signed-in user's role matches this login page
+        const sessionRes = await fetch("/api/auth/session");
+        const session = await sessionRes.json();
+        const signedInRole = session?.user?.role;
+
+        if (signedInRole && signedInRole !== role) {
+          // Wrong role — sign them out and show a helpful error
+          await fetch("/api/auth/signout", { method: "POST" });
+          setError(
+            `This account is registered as a ${signedInRole}, not a ${role === "teacher" ? "coordinator" : "student"}. Please use the ${signedInRole} login page.`,
+          );
+          setLoading(null);
+          return;
+        }
+
         if (mode === "signup" && selectedActivities.length > 0) {
           localStorage.setItem("ecoroute_my_activities", JSON.stringify(selectedActivities));
         }

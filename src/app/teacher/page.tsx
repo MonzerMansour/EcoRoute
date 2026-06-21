@@ -147,9 +147,10 @@ export default async function TeacherDashboardPage() {
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1">
             <p className="text-2xl font-bold text-emerald-700">
-              {formatCo2(summary.baselineTotalCo2Kg - summary.totalCo2Kg)}
+              {summary.tripCount > 0 ? formatCo2(Math.round(summary.totalCo2Kg / summary.tripCount)) : "—"}
             </p>
-            <p className="text-sm font-medium">Total CO₂ saved vs all-bus</p>
+            <p className="text-sm font-medium">Avg CO₂ per trip</p>
+            <p className="text-xs text-muted-foreground">across all planned trips</p>
           </div>
           <div className="space-y-1">
             <p className="text-2xl font-bold text-emerald-700">

@@ -1,4 +1,4 @@
-import { Lightbulb, TrendingDown, Bus, Leaf } from "lucide-react";
+import { Lightbulb, TrendingDown, Leaf, Bus } from "lucide-react";
 import { getTripRepository } from "@/lib/data";
 import { getOwnerId } from "@/lib/session";
 import { getActivityTrips } from "@/lib/data/activity-trips";
@@ -33,9 +33,8 @@ export default async function TeacherRecommendationsPage() {
   const allTrips: Trip[] = [...trips, ...activityTrips];
   const summary = buildSeasonSummary(allTrips);
 
-  const savedVsBaseline = summary.baselineTotalCo2Kg - summary.totalCo2Kg;
-  const baselinePct = pct(savedVsBaseline, summary.baselineTotalCo2Kg);
   const optimizePct = pct(summary.potentialSavingsKg, summary.totalCo2Kg);
+  const unplannedCount = allTrips.filter((t) => !t.chosenVehicleType).length;
 
   return (
     <div className="space-y-6">
@@ -58,10 +57,10 @@ export default async function TeacherRecommendationsPage() {
           </div>
           <div className="rounded-lg border bg-emerald-50 border-emerald-200 p-4 space-y-1">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <TrendingDown className="h-3.5 w-3.5 text-emerald-600" /> Saved vs. all-bus
+              <TrendingDown className="h-3.5 w-3.5 text-emerald-600" /> Still optimizable
             </div>
-            <p className="text-2xl font-bold text-emerald-700">{formatCo2(Math.max(0, savedVsBaseline))}</p>
-            <p className="text-xs text-muted-foreground">{baselinePct}% below school-bus-only baseline ({formatCo2(summary.baselineTotalCo2Kg)})</p>
+            <p className="text-2xl font-bold text-emerald-700">{formatCo2(summary.potentialSavingsKg)}</p>
+            <p className="text-xs text-muted-foreground">{optimizePct}% of current footprint · {unplannedCount} trip{unplannedCount === 1 ? "" : "s"} without a vehicle</p>
           </div>
           <div className="rounded-lg border bg-amber-50 border-amber-200 p-4 space-y-1">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

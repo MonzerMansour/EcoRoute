@@ -26,11 +26,9 @@ export default async function TeacherDashboardPage() {
   ]);
   const summary = buildSeasonSummary([...trips, ...activityTrips]);
 
-  const savedVsBaseline = Math.max(0, summary.baselineTotalCo2Kg - summary.totalCo2Kg);
-  const baselinePct =
-    summary.baselineTotalCo2Kg > 0
-      ? Math.round((savedVsBaseline / summary.baselineTotalCo2Kg) * 100)
-      : 0;
+  const unplannedTrips = [...trips, ...activityTrips].filter(
+    (t) => !t.chosenVehicleType,
+  ).length;
 
   const stats = [
     {
@@ -46,10 +44,10 @@ export default async function TeacherDashboardPage() {
       hint: `optimal target: ${formatCo2(summary.optimalTotalCo2Kg)}`,
     },
     {
-      label: "Saved vs. all-bus baseline",
-      value: formatCo2(savedVsBaseline),
+      label: "Trips still to plan",
+      value: String(unplannedTrips),
       icon: Bus,
-      hint: `${baselinePct}% below ${formatCo2(summary.baselineTotalCo2Kg)} all-bus`,
+      hint: unplannedTrips === 0 ? "All trips have a vehicle assigned" : "assign a vehicle to optimize CO₂",
     },
     {
       label: "Best achievable CO₂",

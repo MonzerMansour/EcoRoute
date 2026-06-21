@@ -24,7 +24,6 @@ export async function getActivityTrips(coordinatorEmail: string): Promise<(Trip 
     const activity = activityMap.get(ev.activityId);
     if (!activity) continue;
     if (!ev.includeInTrips) continue;
-    if (!ev.distanceMiles) continue; // skip events with no distance
 
     trips.push({
       id: `act_${ev.id}`,
@@ -32,7 +31,7 @@ export async function getActivityTrips(coordinatorEmail: string): Promise<(Trip 
       name: ev.title,
       opponent: ev.location ?? activity.name,
       date: ev.date,
-      distanceMiles: ev.distanceMiles,
+      distanceMiles: ev.distanceMiles ?? 0,
       rosterSize: ev.rosterSize ?? ev.subscribedStudents.length ?? 0,
       tripType: "other",
       departureTime: ev.time,

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { AuthProvider } from "@/components/AuthProvider";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -32,9 +33,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn(plusJakarta.variable, jetbrainsMono.variable)}>
       <body className="font-sans">
-        <Navbar />
-        <main className="min-h-screen">{children}</main>
-        <Footer />
+        <AuthProvider>
+          <Navbar />
+          <main className="min-h-screen">{children}</main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );

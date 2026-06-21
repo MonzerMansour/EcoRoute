@@ -32,7 +32,8 @@ export function TeacherNav() {
   const { openTour } = useTourStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { data: session } = useSession();
-  const userName = session?.user?.name ?? session?.user?.email?.split("@")[0];
+  const userEmail = session?.user?.email ?? "";
+  const userName = session?.user?.name ?? userEmail.split("@")[0];
 
   return (
     <div className="border-b border-border bg-card">
@@ -52,7 +53,10 @@ export function TeacherNav() {
           {userName && (
             <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1">
               <UserCircle className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">{userName}</span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-sm font-medium">{userName}</span>
+                {userEmail && <span className="text-xs text-muted-foreground">{userEmail}</span>}
+              </div>
             </div>
           )}
           <Button

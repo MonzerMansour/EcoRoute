@@ -41,6 +41,11 @@ export function StudentEvents() {
   const [coordEmail, setCoordEmail] = useState("");
   const [coordLookupState, setCoordLookupState] = useState<"idle" | "loading" | "done" | "none">("idle");
   const [coordResults, setCoordResults] = useState<Activity[]>([]);
+  // Join request
+  const [joinCoordEmail, setJoinCoordEmail] = useState("");
+  const [joinEventName, setJoinEventName] = useState("");
+  const [joinState, setJoinState] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [joinMessage, setJoinMessage] = useState("");
 
   const refresh = useCallback(async () => {
     const [evs, acts] = await Promise.all([
@@ -119,6 +124,34 @@ export function StudentEvents() {
       }
     } catch {
       setCoordLookupState("none");
+    }
+  }
+
+  async function handleJoinRequest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!joinCoordEmail.trim() || !joinEventName.trim()) return;
+    setJoinState("loading");
+    setJoinMessage("");
+    try {
+      const res = await fetch("/api/events/join-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coordinatorEmail: joinCoordEmail.trim(), eventName: joinEventName.trim(), studentName }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setJoinState("success");
+        setJoinMessage(`Joined "${data.event?.title}"!`);
+        setJoinCoordEmail("");
+        setJoinEventName("");
+        refresh();
+      } else {
+        setJoinState("error");
+        setJoinMessage(data.error ?? "Something went wrong.");
+      }
+    } catch {
+      setJoinState("error");
+      setJoinMessage("Network error. Try again.");
     }
   }
 
@@ -325,6 +358,46 @@ export function StudentEvents() {
 
   return (
     <div className="space-y-4">
+      {/* Quick join by coordinator email + event name */}
+      <Card>
+        <CardContent className="p-4">
+          <form onSubmit={handleJoinRequest} className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[160px] space-y-1">
+              <Label className="text-xs">Coordinator email</Label>
+              <Input
+                type="email"
+                placeholder="coach@school.edu"
+                value={joinCoordEmail}
+                onChange={(e) => { setJoinCoordEmail(e.target.value); setJoinState("idle"); }}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="flex-1 min-w-[160px] space-y-1">
+              <Label className="text-xs">Event name</Label>
+              <Input
+                placeholder="e.g. Away @ Riverside"
+                value={joinEventName}
+                onChange={(e) => { setJoinEventName(e.target.value); setJoinState("idle"); }}
+                className="h-8 text-sm"
+              />
+            </div>
+            <Button
+              type="submit"
+              size="sm"
+              className="h-8"
+              disabled={joinState === "loading" || !joinCoordEmail.trim() || !joinEventName.trim()}
+            >
+              {joinState === "loading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Request to Join"}
+            </Button>
+            {joinMessage && (
+              <p className={`w-full text-xs ${joinState === "success" ? "text-green-700" : "text-destructive"}`}>
+                {joinMessage}
+              </p>
+            )}
+          </form>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           Signed in as <span className="font-medium text-foreground">{studentName}</span>

@@ -1,5 +1,7 @@
 # EcoRoute — Creator Colosseum Startup Competition Submission
 
+[EcoRoute Live Website](https://ecoroute-app-nu.vercel.app/)
+
 ## 1. Written Description of the Startup Idea
 
 EcoRoute is an AI-assisted transportation platform that helps schools cut travel emissions without changing a single bell schedule, bus contract, or practice time. It gives coaches and athletic directors a tool to pick the lowest-emission vehicle mix for away games, and gives families a privacy-safe way to find carpool partners for daily commutes and home games, all powered by one shared emissions engine so a coach's season report and a family's daily commute are measured on the same scale.

@@ -1,4 +1,4 @@
-# EcoRoute — Creator Colosseum Startup Competition Submission
+# EcoRoute — Creator Colosseum Startup Competition
 
 [EcoRoute Live Website](https://ecoroute-app-nu.vercel.app/)
 

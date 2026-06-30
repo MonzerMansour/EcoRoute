@@ -42,6 +42,8 @@ No exact home addresses are ever collected; carpool matching uses ZIP + neighbor
 
 ### What's already built
 
+[EcoRoute Link](https://ecoroute-app-nu.vercel.app/)
+
 EcoRoute is live today at the link above, with separate working login flows for teachers and students, a season emissions report generator, and a carpool-cluster map; this is a functioning product, not a mockup.
 
 ## 4. Execution / Business Plan
